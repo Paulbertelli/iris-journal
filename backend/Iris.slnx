@@ -6,6 +6,7 @@
     <Project Path="src/Iris.Infrastructure/Iris.Infrastructure.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/Iris.Application.Tests/Iris.Application.Tests.csproj" />
     <Project Path="tests/Iris.Domain.Tests/Iris.Domain.Tests.csproj" />
   </Folder>
 </Solution>
