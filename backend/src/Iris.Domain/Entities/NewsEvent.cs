@@ -1,3 +1,5 @@
+using Iris.Domain.Enums;
+
 namespace Iris.Domain.Entities;
 
 public sealed class NewsEvent
