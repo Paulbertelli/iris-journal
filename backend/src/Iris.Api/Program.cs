@@ -14,6 +14,7 @@ builder.Services.AddDbContext<IrisDbContext>(options => options.UseSqlite(connec
 
 builder.Services.AddScoped<IRssSourceRepository, RssSourceRepository>();
 builder.Services.AddScoped<AddRssSourceUseCase>();
+builder.Services.AddScoped<ListRssSourcesUseCase>();
 
 // Add services to the container.
 
