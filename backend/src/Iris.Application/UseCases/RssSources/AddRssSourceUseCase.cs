@@ -5,7 +5,7 @@ namespace Iris.Application.UseCases.RssSources;
 
 public sealed class AddRssSourceUseCase(IRssSourceRepository rssSourceRepository)
 {
-    public async Task<bool> ExecuteAsync(
+    public async Task<Guid?> ExecuteAsync(
         string name,
         string feedUrl,
         string countryCode,
@@ -18,9 +18,9 @@ public sealed class AddRssSourceUseCase(IRssSourceRepository rssSourceRepository
             cancellationToken);
 
         if (alreadyExists)
-            return false;
+            return null;    
 
         await rssSourceRepository.AddAsync(source, cancellationToken);
-        return true;
+        return source.Id;
     }
 }

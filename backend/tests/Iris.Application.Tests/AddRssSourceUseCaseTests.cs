@@ -7,7 +7,7 @@ namespace Iris.Application.Tests;
 public class AddRssSourceUseCaseTests
 {
     [Fact]
-    public async Task ExecuteAsync_WhenSourceIsNew_AddsItAndReturnsTrue()
+    public async Task ExecuteAsync_WhenSourceIsNew_AddsItAndReturnsId()
     {
         var repository = new FakeRssSourceRepository();
         var useCase = new AddRssSourceUseCase(repository);
@@ -17,15 +17,16 @@ public class AddRssSourceUseCaseTests
             "https://example.com/feed",
             "FR");
 
-        Assert.True(result);
-
         var source = Assert.Single(repository.Sources);
+        
+        Assert.NotNull(result);
+        Assert.Equal(source.Id, result.Value);
         Assert.Equal("Le Monde", source.Name);
         Assert.Equal("FR", source.CountryCode);
     }
 
     [Fact]
-    public async Task ExecuteAsync_WhenSourceAlreadyExists_ReturnsFalse()
+    public async Task ExecuteAsync_WhenSourceAlreadyExists_ReturnsNull()
     {
         var repository = new FakeRssSourceRepository();
         var existingSource = new RssSource(
@@ -42,7 +43,7 @@ public class AddRssSourceUseCaseTests
             "https://example.com/feed",
             "FR");
 
-        Assert.False(result);
+        Assert.Null(result);
         Assert.Single(repository.Sources);
     }
 
