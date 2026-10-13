@@ -68,5 +68,11 @@ public class AddRssSourceUseCaseTests
             _sources.Add(source);
             return Task.CompletedTask;
         }
+        
+        public Task<IReadOnlyList<RssSource>> GetAllAsync(
+            CancellationToken cancellationToken)
+        {
+            return Task.FromResult<IReadOnlyList<RssSource>>(_sources.OrderBy(source => source.Name).ToList());
+        }
     }
 }

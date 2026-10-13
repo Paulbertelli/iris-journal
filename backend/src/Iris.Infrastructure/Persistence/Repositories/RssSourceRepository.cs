@@ -21,4 +21,9 @@ public sealed class RssSourceRepository(IrisDbContext dbContext) : IRssSourceRep
         dbContext.RssSources.Add(source);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
+
+    public async Task<IReadOnlyList<RssSource>> GetAllAsync(CancellationToken cancellationToken)
+    {
+        return await dbContext.RssSources.AsNoTracking().OrderBy(source => source.Name).ToListAsync(cancellationToken);
+    }
 }

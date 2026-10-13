@@ -11,4 +11,7 @@ public interface IRssSourceRepository
     Task AddAsync(
         RssSource source,
         CancellationToken cancellationToken);
+    
+    Task<IReadOnlyList<RssSource>> GetAllAsync(
+        CancellationToken cancellationToken);
 }

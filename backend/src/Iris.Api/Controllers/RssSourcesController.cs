@@ -4,9 +4,32 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Iris.Api.Controllers;
 
-public sealed class RssSourcesController(AddRssSourceUseCase addRssSourceUseCase) : ControllerBase
+[ApiController]
+[Route("api/rss-sources")]
+public sealed class RssSourcesController(
+    ListRssSourcesUseCase listRssSourcesUseCase,
+    AddRssSourceUseCase addRssSourceUseCase
+) : ControllerBase
 {
-    [HttpPost("api/rss-sources")]
+    [HttpGet]
+    public async Task<IActionResult> GetAll(
+        CancellationToken cancellationToken)
+    {
+        var sources = await listRssSourcesUseCase.ExecuteAsync(cancellationToken);
+
+        var response = sources.Select(source => new RssSourceResponse
+        {
+            Id = source.Id,
+            Name = source.Name,
+            FeedUrl = source.FeedUrl,
+            CountryCode = source.CountryCode,
+            IsEnabled = source.IsEnabled
+        }).ToList();
+
+        return Ok(response);
+    }
+
+    [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateRssSourceRequest request,
         CancellationToken cancellationToken)
     {
