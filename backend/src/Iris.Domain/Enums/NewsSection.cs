@@ -1,4 +1,4 @@
-namespace Iris.Domain.Entities;
+namespace Iris.Domain.Enums;
 
 public enum NewsSection
 {

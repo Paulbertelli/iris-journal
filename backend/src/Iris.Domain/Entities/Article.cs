@@ -24,5 +24,6 @@ public sealed class Article
         Title = title.Trim();
         ArticleUrl = uri.AbsoluteUri;
         PublishedAt = publishedAt?.ToUniversalTime();
+        RssSourceId = rssSourceId;
     }
 }
