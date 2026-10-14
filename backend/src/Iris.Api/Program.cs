@@ -1,5 +1,7 @@
+using Iris.Application.Abstractions.Feeds;
 using Iris.Application.Abstractions.Persistence;
 using Iris.Application.UseCases.RssSources;
+using Iris.Infrastructure.Feeds;
 using Iris.Infrastructure.Persistence;
 using Iris.Infrastructure.Persistence.Repositories;
 using Microsoft.EntityFrameworkCore;
@@ -13,8 +15,10 @@ var connectionString = builder.Configuration.GetConnectionString("IrisDatabase")
 builder.Services.AddDbContext<IrisDbContext>(options => options.UseSqlite(connectionString));
 
 builder.Services.AddScoped<IRssSourceRepository, RssSourceRepository>();
+builder.Services.AddHttpClient<IRssFeedReader, RssFeedReader>();
 builder.Services.AddScoped<AddRssSourceUseCase>();
 builder.Services.AddScoped<ListRssSourcesUseCase>();
+
 
 // Add services to the container.
 
