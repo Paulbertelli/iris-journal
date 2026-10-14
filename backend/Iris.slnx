@@ -9,5 +9,6 @@
     <Project Path="tests/Iris.Api.Tests/Iris.Api.Tests.csproj" />
     <Project Path="tests/Iris.Application.Tests/Iris.Application.Tests.csproj" />
     <Project Path="tests/Iris.Domain.Tests/Iris.Domain.Tests.csproj" />
+    <Project Path="tests/Iris.Infrastructure.Tests/Iris.Infrastructure.Tests.csproj" />
   </Folder>
 </Solution>
