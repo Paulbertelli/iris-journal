@@ -19,6 +19,9 @@ export class RssSourcesPage implements OnInit {
   readonly sources = signal<RssSource[]>([]);
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
+  readonly collectingId = signal<string | null>(null);
+  readonly collectionMessage = signal<string | null>(null);
+  readonly collectionError = signal<string | null>(null);
 
   readonly form = this.formBuilder.group({
     name: ['', Validators.required],
@@ -80,5 +83,32 @@ export class RssSourcesPage implements OnInit {
           );
         },
       });
+  }
+
+  collect(id: string): void {
+    if (this.collectingId() !== null) return;
+
+    this.collectingId.set(id);
+    this.collectionMessage.set(null);
+    this.collectionError.set(null);
+
+    this.api.collect(id).subscribe({
+      next: ({ addedCount }) => {
+        this.collectingId.set(null);
+        this.collectionMessage.set(`${addedCount} nouvel(s) article(s) collecté(s).`);
+      },
+      error: (error: HttpErrorResponse) => {
+        this.collectingId.set(null);
+
+        const message =
+          error.status === 504
+            ? 'Le site met trop de temps à répondre. Réessaie plus tard.'
+            : error.status === 502
+              ? 'Impossible de lire le flux de cette source.'
+              : 'La collecte a échoué. Réessaie.';
+
+        this.collectionError.set(message);
+      },
+    });
   }
 }

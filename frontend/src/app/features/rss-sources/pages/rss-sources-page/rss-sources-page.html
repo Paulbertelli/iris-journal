@@ -8,28 +8,16 @@
 
   <div>
     <label for="source-url">URL du flux RSS</label>
-    <input
-      id="source-url"
-      type="url"
-      formControlName="feedUrl"
-      required
-    />
+    <input id="source-url" type="url" formControlName="feedUrl" required />
   </div>
 
   <div>
     <label for="source-country">Code pays — deux lettres</label>
-    <input
-      id="source-country"
-      formControlName="countryCode"
-      maxlength="2"
-      required
-    />
+    <input id="source-country" formControlName="countryCode" maxlength="2" required />
   </div>
 
   @if (form.invalid && form.touched) {
-    <p role="alert">
-      Renseigne un nom, une URL HTTP ou HTTPS et un code pays de deux lettres.
-    </p>
+    <p role="alert">Renseigne un nom, une URL HTTP ou HTTPS et un code pays de deux lettres.</p>
   }
 
   @if (submitError()) {
@@ -46,12 +34,21 @@
 } @else if (error()) {
   <p role="alert">{{ error() }}</p>
 } @else {
+  @if (collectionMessage()) {
+    <p role="status">{{ collectionMessage() }}</p>
+  }
+
+  @if (collectionError()) {
+    <p role="alert">{{ collectionError() }}</p>
+  }
   <ul>
     @for (source of sources(); track source.id) {
       <li>
         <strong>{{ source.name }}</strong>
-        — {{ source.countryCode }}
-        — {{ source.isEnabled ? 'Activée' : 'Désactivée' }}
+        — {{ source.countryCode }} — {{ source.isEnabled ? 'Activée' : 'Désactivée' }}
+        <button type="button" [disabled]="collectingId() !== null" (click)="collect(source.id)">
+          {{ collectingId() === source.id ? 'Collecte en cours…' : 'Collecter' }}
+        </button>
       </li>
     } @empty {
       <li>Aucune source RSS enregistrée.</li>

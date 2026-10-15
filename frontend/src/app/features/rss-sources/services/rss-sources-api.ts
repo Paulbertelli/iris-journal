@@ -15,4 +15,8 @@ export class RssSourcesApi {
   create(request: CreateRssSourceRequest): Observable<{ id: string }> {
     return this.http.post<{ id: string }>('/api/rss-sources', request);
   }
+
+  collect(id: string): Observable<{ addedCount: number }> {
+    return this.http.post<{ addedCount: number }>(`/api/rss-sources/${id}/collect`, null);
+  }
 }
