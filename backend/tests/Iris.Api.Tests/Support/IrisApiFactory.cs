@@ -16,7 +16,7 @@ public sealed class IrisApiFactory : WebApplicationFactory<Program>
 
     public IReadOnlyList<RssFeedItem> FeedItems { get; set; } = Array.Empty<RssFeedItem>();
     public int FeedReadCount { get; private set; }
-    public FeedReadException? FeedReadFailure { get; set; }
+    public Exception? FeedReadFailure { get; set; }
 
     public IrisApiFactory()
     {

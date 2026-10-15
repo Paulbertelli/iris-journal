@@ -418,4 +418,58 @@ public class RssSourcesApiTests
 
         Assert.Empty(await dbContext.Articles.ToListAsync());
     }
+    
+    [Fact]
+    public async Task Collect_WhenUnexpectedErrorOccurs_ReturnsGenericInternalServerError()
+    {
+        await using var factory = new IrisApiFactory();
+
+        const string internalMessage = "Erreur confidentielle de test";
+
+        factory.FeedReadFailure = new InvalidOperationException(internalMessage);
+        factory.CreateDatabase();
+
+        using var client = factory.CreateClient();
+
+        using var createResponse = await client.PostAsJsonAsync(
+            "/api/rss-sources",
+            new
+            {
+                name = "Source test",
+                feedUrl = "https://example.com/feed",
+                countryCode = "FR"
+            });
+
+        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+
+        var source = await createResponse.Content
+            .ReadFromJsonAsync<CreateRssSourceResponse>();
+
+        Assert.NotNull(source);
+
+        using var response = await client.PostAsync(
+            $"/api/rss-sources/{source.Id}/collect",
+            content: null);
+
+        Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
+        Assert.Equal(
+            "application/problem+json",
+            response.Content.Headers.ContentType?.MediaType);
+
+        var problem = await response.Content
+            .ReadFromJsonAsync<Microsoft.AspNetCore.Mvc.ProblemDetails>();
+
+        Assert.NotNull(problem);
+        Assert.Equal(500, problem.Status);
+        Assert.Equal("Erreur interne du serveur", problem.Title);
+        Assert.Equal("Une erreur inattendue est survenue.", problem.Detail);
+
+        Assert.True(problem.Extensions.TryGetValue("traceId", out var traceId));
+        Assert.False(string.IsNullOrWhiteSpace(traceId?.ToString()));
+
+        var content = await response.Content.ReadAsStringAsync();
+
+        Assert.DoesNotContain(internalMessage, content);
+        Assert.DoesNotContain(nameof(InvalidOperationException), content);
+    }
 }

@@ -29,7 +29,25 @@ builder.Services.AddScoped<ListArticlesUseCase>();
 builder.Services.AddControllers();
 builder.Services.AddSwaggerGen();
 
+builder.Services.AddProblemDetails(options =>
+{
+    options.CustomizeProblemDetails = context =>
+    {
+        if (context.ProblemDetails.Status == StatusCodes.Status500InternalServerError)
+        {
+            context.ProblemDetails.Title = "Erreur interne du serveur";
+            context.ProblemDetails.Detail =
+                "Une erreur inattendue est survenue.";
+        }
+
+        context.ProblemDetails.Extensions["traceId"] =
+            context.HttpContext.TraceIdentifier;
+    };
+});
+
 var app = builder.Build();
+
+app.UseExceptionHandler();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
