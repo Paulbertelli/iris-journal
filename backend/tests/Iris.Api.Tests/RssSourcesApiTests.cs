@@ -1,6 +1,10 @@
 using System.Net;
 using System.Net.Http.Json;
 using Iris.Api.Contracts.RssSources;
+using Iris.Application.Abstractions.Feeds;
+using Iris.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Iris.Api.Tests;
 
@@ -81,7 +85,7 @@ public class RssSourcesApiTests
     {
         await using var factory = new IrisApiFactory();
         factory.CreateDatabase();
-        
+
         using var client = factory.CreateClient();
         using var response = await client.GetAsync("/api/rss-sources");
 
@@ -107,7 +111,7 @@ public class RssSourcesApiTests
             new { name = "Zeta", feedUrl = "https://zeta.com/feed1", countryCode = "FR" },
             new { name = "Alpha", feedUrl = "https://alpha.com/feed2", countryCode = "GB" }
         };
-        
+
         var createdIds = new Dictionary<string, Guid>();
 
         foreach (var source in sourcesToCreate)
@@ -150,5 +154,204 @@ public class RssSourcesApiTests
     public sealed class CreateRssSourceResponse
     {
         public Guid Id { get; init; }
+    }
+
+    [Fact]
+    public async Task Collect_WhenSourceIsUnknown_ReturnsNotFoundWithoutReadingFeed()
+    {
+        await using var factory = new IrisApiFactory();
+        factory.CreateDatabase();
+
+        using var client = factory.CreateClient();
+
+        using var response = await client.PostAsync(
+            $"/api/rss-sources/{Guid.NewGuid()}/collect",
+            content: null);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal(0, factory.FeedReadCount);
+
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider
+            .GetRequiredService<IrisDbContext>();
+
+        Assert.Empty(await dbContext.Articles.ToListAsync());
+    }
+
+    [Fact]
+    public async Task Collect_WithNewItems_PersistsArticlesAndReturnsAddedCount()
+    {
+        await using var factory = new IrisApiFactory();
+
+        factory.FeedItems =
+        [
+            new RssFeedItem
+            {
+                Title = "Premier article",
+                ArticleUrl = "https://example.com/first",
+                PublishedAt = new DateTimeOffset(
+                    2026, 10, 15, 10, 0, 0, TimeSpan.Zero)
+            },
+            new RssFeedItem
+            {
+                Title = "Deuxième article",
+                ArticleUrl = "https://example.com/second"
+            }
+        ];
+
+        factory.CreateDatabase();
+
+        using var client = factory.CreateClient();
+
+        using var createResponse = await client.PostAsJsonAsync(
+            "/api/rss-sources",
+            new
+            {
+                name = "Source test",
+                feedUrl = "https://example.com/feed",
+                countryCode = "FR"
+            });
+
+        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+
+        var source = await createResponse.Content
+            .ReadFromJsonAsync<CreateRssSourceResponse>();
+
+        Assert.NotNull(source);
+
+        using var response = await client.PostAsync(
+            $"/api/rss-sources/{source.Id}/collect",
+            content: null);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var result = await response.Content
+            .ReadFromJsonAsync<CollectRssSourceResponse>();
+
+        Assert.NotNull(result);
+        Assert.Equal(2, result.AddedCount);
+        Assert.Equal(1, factory.FeedReadCount);
+
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider
+            .GetRequiredService<IrisDbContext>();
+
+        var articles = await dbContext.Articles
+            .AsNoTracking()
+            .ToListAsync();
+
+        Assert.Equal(2, articles.Count);
+
+        foreach (var expected in factory.FeedItems)
+        {
+            var article = Assert.Single(
+                articles,
+                article => article.ArticleUrl == expected.ArticleUrl);
+
+            Assert.NotEqual(Guid.Empty, article.Id);
+            Assert.Equal(source.Id, article.RssSourceId);
+            Assert.Equal(expected.Title, article.Title);
+            Assert.Equal(expected.PublishedAt, article.PublishedAt);
+        }
+    }
+
+    [Fact]
+    public async Task Collect_WhenRepeated_ReturnsZeroAndPreservesExistingArticles()
+    {
+        await using var factory = new IrisApiFactory();
+
+        factory.FeedItems =
+        [
+            new RssFeedItem
+            {
+                Title = "Premier article",
+                ArticleUrl = "https://example.com/first"
+            },
+            new RssFeedItem
+            {
+                Title = "Deuxième article",
+                ArticleUrl = "https://example.com/second"
+            }
+        ];
+
+        factory.CreateDatabase();
+
+        using var client = factory.CreateClient();
+
+        using var createResponse = await client.PostAsJsonAsync(
+            "/api/rss-sources",
+            new
+            {
+                name = "Source test",
+                feedUrl = "https://example.com/feed",
+                countryCode = "FR"
+            });
+
+        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+
+        var source = await createResponse.Content
+            .ReadFromJsonAsync<CreateRssSourceResponse>();
+
+        Assert.NotNull(source);
+
+        using var firstResponse = await client.PostAsync(
+            $"/api/rss-sources/{source.Id}/collect",
+            content: null);
+
+        Assert.Equal(HttpStatusCode.OK, firstResponse.StatusCode);
+
+        var firstResult = await firstResponse.Content
+            .ReadFromJsonAsync<CollectRssSourceResponse>();
+
+        Assert.NotNull(firstResult);
+        Assert.Equal(2, firstResult.AddedCount);
+
+        List<Guid> initialIds;
+
+        using (var scope = factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider
+                .GetRequiredService<IrisDbContext>();
+
+            initialIds = await dbContext.Articles
+                .Select(article => article.Id)
+                .ToListAsync();
+        }
+
+        Assert.Equal(2, initialIds.Count);
+
+        using var secondResponse = await client.PostAsync(
+            $"/api/rss-sources/{source.Id}/collect",
+            content: null);
+
+        Assert.Equal(HttpStatusCode.OK, secondResponse.StatusCode);
+
+        var secondResult = await secondResponse.Content
+            .ReadFromJsonAsync<CollectRssSourceResponse>();
+
+        Assert.NotNull(secondResult);
+        Assert.Equal(0, secondResult.AddedCount);
+        Assert.Equal(2, factory.FeedReadCount);
+
+        using var finalScope = factory.Services.CreateScope();
+        var finalDbContext = finalScope.ServiceProvider
+            .GetRequiredService<IrisDbContext>();
+
+        var savedArticles = await finalDbContext.Articles
+            .AsNoTracking()
+            .ToListAsync();
+
+        Assert.Equal(
+            initialIds.OrderBy(id => id),
+            savedArticles.Select(article => article.Id).OrderBy(id => id));
+
+        Assert.All(
+            savedArticles,
+            article => Assert.Equal(source.Id, article.RssSourceId));
+    }
+
+    public sealed class CollectRssSourceResponse
+    {
+        public int AddedCount { get; init; }
     }
 }

@@ -1,3 +1,4 @@
+using Iris.Application.Abstractions.Feeds;
 using Iris.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -11,8 +12,11 @@ namespace Iris.Api.Tests;
 
 public sealed class IrisApiFactory : WebApplicationFactory<Program>
 {
-    private readonly SqliteConnection _connection =
-        new("Data Source=:memory:");
+    private readonly SqliteConnection _connection = new("Data Source=:memory:");
+    
+    public IReadOnlyList<RssFeedItem> FeedItems { get; set; } = Array.Empty<RssFeedItem>();
+
+    public int FeedReadCount { get; private set; }
 
     public IrisApiFactory()
     {
@@ -32,6 +36,10 @@ public sealed class IrisApiFactory : WebApplicationFactory<Program>
 
             services.AddDbContext<IrisDbContext>(options =>
                 options.UseSqlite(_connection));
+            
+            services.RemoveAll<IRssFeedReader>();
+            services.AddSingleton<IRssFeedReader>(
+                new StubRssFeedReader(this));
         });
     }
 
@@ -51,5 +59,20 @@ public sealed class IrisApiFactory : WebApplicationFactory<Program>
 
         if (disposing)
             _connection.Dispose();
+    }
+    
+    private sealed class StubRssFeedReader(
+        IrisApiFactory factory) : IRssFeedReader
+    {
+        public Task<IReadOnlyList<RssFeedItem>> ReadAsync(
+            string feedUrl,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            factory.FeedReadCount++;
+
+            return Task.FromResult(factory.FeedItems);
+        }
     }
 }
