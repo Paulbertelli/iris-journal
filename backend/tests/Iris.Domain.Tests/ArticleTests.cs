@@ -24,7 +24,7 @@ public class ArticleTests
         Assert.Equal(publishedAt.ToUniversalTime(), article.PublishedAt);
         Assert.Equal(TimeSpan.Zero, article.CollectedAt.Offset);
     }
-    
+
     [Fact]
     public void Constructor_WithEmptySourceId_ThrowsArgumentException()
     {

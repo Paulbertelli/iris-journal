@@ -1,11 +1,12 @@
 using System.Net;
 using System.Net.Http.Json;
 using Iris.Api.Contracts.Articles;
+using Iris.Api.Tests.Support;
 using Iris.Domain.Entities;
 using Iris.Infrastructure.Persistence;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Iris.Api.Tests;
+namespace Iris.Api.Tests.ControllersTests;
 
 public class ArticlesApiTests
 {

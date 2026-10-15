@@ -193,7 +193,7 @@ public class ArticleRepositoryTests
         dbContext.ChangeTracker.Clear();
         Assert.Empty(await dbContext.Articles.ToListAsync());
     }
-    
+
     [Fact]
     public async Task GetLatestAsync_ReturnsLatestArticlesUpToLimit()
     {

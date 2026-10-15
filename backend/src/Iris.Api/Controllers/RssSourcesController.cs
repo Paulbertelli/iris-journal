@@ -1,4 +1,5 @@
 using Iris.Api.Contracts.RssSources;
+using Iris.Application.Abstractions.Feeds;
 using Iris.Application.UseCases.RssSources;
 using Microsoft.AspNetCore.Mvc;
 
@@ -9,8 +10,8 @@ namespace Iris.Api.Controllers;
 public sealed class RssSourcesController(
     ListRssSourcesUseCase listRssSourcesUseCase,
     AddRssSourceUseCase addRssSourceUseCase,
-    CollectRssSourceUseCase  collectRssSourceUseCase
-    ) : ControllerBase
+    CollectRssSourceUseCase collectRssSourceUseCase
+) : ControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> GetAll(
@@ -62,18 +63,26 @@ public sealed class RssSourcesController(
             });
         }
     }
-    
+
     [HttpPost("{id:guid}/collect")]
     public async Task<IActionResult> Collect(
         Guid id,
         CancellationToken cancellationToken)
     {
-        var result = await collectRssSourceUseCase.ExecuteAsync(id, cancellationToken);
+        try
+        {
+            var result = await collectRssSourceUseCase.ExecuteAsync(id, cancellationToken);
 
-        if (result is null)
-            return NotFound();
-        
-        return Ok(new { addedCount = result.Value });
+            if (result is null)
+                return NotFound();
 
+            return Ok(new { addedCount = result.Value });
+        }
+        catch (FeedReadException exception)
+        {
+            var status = exception.IsTimeout ? StatusCodes.Status504GatewayTimeout : StatusCodes.Status502BadGateway;
+
+            return Problem(statusCode: status, title: "Échec de la collecte RSS", detail: exception.Message);
+        }
     }
 }

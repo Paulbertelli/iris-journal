@@ -8,39 +8,19 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
-namespace Iris.Api.Tests;
+namespace Iris.Api.Tests.Support;
 
 public sealed class IrisApiFactory : WebApplicationFactory<Program>
 {
     private readonly SqliteConnection _connection = new("Data Source=:memory:");
-    
-    public IReadOnlyList<RssFeedItem> FeedItems { get; set; } = Array.Empty<RssFeedItem>();
 
+    public IReadOnlyList<RssFeedItem> FeedItems { get; set; } = Array.Empty<RssFeedItem>();
     public int FeedReadCount { get; private set; }
+    public FeedReadException? FeedReadFailure { get; set; }
 
     public IrisApiFactory()
     {
         _connection.Open();
-    }
-
-    protected override void ConfigureWebHost(IWebHostBuilder builder)
-    {
-        builder.UseEnvironment("Testing");
-
-        builder.ConfigureServices(services =>
-        {
-            services.RemoveAll<IrisDbContext>();
-            services.RemoveAll<DbContextOptions<IrisDbContext>>();
-            services.RemoveAll<
-                IDbContextOptionsConfiguration<IrisDbContext>>();
-
-            services.AddDbContext<IrisDbContext>(options =>
-                options.UseSqlite(_connection));
-            
-            services.RemoveAll<IRssFeedReader>();
-            services.AddSingleton<IRssFeedReader>(
-                new StubRssFeedReader(this));
-        });
     }
 
     public void CreateDatabase()
@@ -60,7 +40,27 @@ public sealed class IrisApiFactory : WebApplicationFactory<Program>
         if (disposing)
             _connection.Dispose();
     }
-    
+
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        builder.UseEnvironment("Testing");
+
+        builder.ConfigureServices(services =>
+        {
+            services.RemoveAll<IrisDbContext>();
+            services.RemoveAll<DbContextOptions<IrisDbContext>>();
+            services.RemoveAll<
+                IDbContextOptionsConfiguration<IrisDbContext>>();
+
+            services.AddDbContext<IrisDbContext>(options =>
+                options.UseSqlite(_connection));
+
+            services.RemoveAll<IRssFeedReader>();
+            services.AddSingleton<IRssFeedReader>(
+                new StubRssFeedReader(this));
+        });
+    }
+
     private sealed class StubRssFeedReader(
         IrisApiFactory factory) : IRssFeedReader
     {
@@ -71,6 +71,9 @@ public sealed class IrisApiFactory : WebApplicationFactory<Program>
             cancellationToken.ThrowIfCancellationRequested();
 
             factory.FeedReadCount++;
+
+            if (factory.FeedReadFailure is { } failure)
+                return Task.FromException<IReadOnlyList<RssFeedItem>>(failure);
 
             return Task.FromResult(factory.FeedItems);
         }

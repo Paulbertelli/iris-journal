@@ -1,15 +1,26 @@
 using System.Net;
 using System.Net.Http.Json;
 using Iris.Api.Contracts.RssSources;
+using Iris.Api.Tests.Support;
 using Iris.Application.Abstractions.Feeds;
 using Iris.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Iris.Api.Tests;
+namespace Iris.Api.Tests.ControllersTests;
 
 public class RssSourcesApiTests
 {
+    public sealed class CreateRssSourceResponse
+    {
+        public Guid Id { get; init; }
+    }
+
+    public sealed class CollectRssSourceResponse
+    {
+        public int AddedCount { get; init; }
+    }
+
     [Fact]
     public async Task Create_WithValidData_ReturnsCreatedWithId()
     {
@@ -149,11 +160,6 @@ public class RssSourcesApiTests
             Assert.Equal(expected.countryCode, actual.CountryCode);
             Assert.True(actual.IsEnabled);
         }
-    }
-
-    public sealed class CreateRssSourceResponse
-    {
-        public Guid Id { get; init; }
     }
 
     [Fact]
@@ -350,8 +356,66 @@ public class RssSourcesApiTests
             article => Assert.Equal(source.Id, article.RssSourceId));
     }
 
-    public sealed class CollectRssSourceResponse
+    [Theory]
+    [InlineData(false, HttpStatusCode.BadGateway)]
+    [InlineData(true, HttpStatusCode.GatewayTimeout)]
+    public async Task Collect_WhenFeedReadFails_ReturnsExpectedError(
+        bool isTimeout,
+        HttpStatusCode expectedStatus)
     {
-        public int AddedCount { get; init; }
+        await using var factory = new IrisApiFactory();
+
+        factory.FeedReadFailure = new FeedReadException(
+            "Échec de lecture du flux.",
+            new Exception("Détail interne confidentiel"),
+            isTimeout: isTimeout);
+
+        factory.CreateDatabase();
+
+        using var client = factory.CreateClient();
+
+        using var createResponse = await client.PostAsJsonAsync(
+            "/api/rss-sources",
+            new
+            {
+                name = "Source test",
+                feedUrl = "https://example.com/feed",
+                countryCode = "FR"
+            });
+
+        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+
+        var source = await createResponse.Content
+            .ReadFromJsonAsync<CreateRssSourceResponse>();
+
+        Assert.NotNull(source);
+
+        using var response = await client.PostAsync(
+            $"/api/rss-sources/{source.Id}/collect",
+            content: null);
+
+        Assert.Equal(expectedStatus, response.StatusCode);
+        Assert.Equal(
+            "application/problem+json",
+            response.Content.Headers.ContentType?.MediaType);
+
+        var problem = await response.Content
+            .ReadFromJsonAsync<Microsoft.AspNetCore.Mvc.ProblemDetails>();
+
+        Assert.NotNull(problem);
+        Assert.Equal((int?)expectedStatus, problem.Status);
+        Assert.Equal("Échec de la collecte RSS", problem.Title);
+        Assert.Equal("Échec de lecture du flux.", problem.Detail);
+
+        var content = await response.Content.ReadAsStringAsync();
+        Assert.DoesNotContain("Détail interne confidentiel", content);
+
+        Assert.Equal(1, factory.FeedReadCount);
+
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider
+            .GetRequiredService<IrisDbContext>();
+
+        Assert.Empty(await dbContext.Articles.ToListAsync());
     }
 }
