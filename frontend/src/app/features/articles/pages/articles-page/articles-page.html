@@ -1,0 +1,25 @@
+<h1>Derniers articles collectés</h1>
+
+@if (loading()) {
+  <p role="status">Chargement des articles…</p>
+} @else if (error()) {
+  <p role="alert">{{ error() }}</p>
+} @else {
+  <ul>
+    @for (article of articles(); track article.id) {
+      <li>
+        <a [href]="article.articleUrl" target="_blank" rel="noopener noreferrer">
+          {{ article.title }}
+        </a>
+
+        @if (article.publishedAt) {
+          <p>Publié le {{ article.publishedAt | date: 'dd/MM/yyyy HH:mm' }}</p>
+        } @else {
+          <p>Date de publication inconnue</p>
+        }
+      </li>
+    } @empty {
+      <li>Aucun article collecté. Lance une collecte depuis les sources.</li>
+    }
+  </ul>
+}
