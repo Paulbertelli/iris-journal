@@ -1,0 +1,19 @@
+<h1>Sources RSS</h1>
+
+@if (loading()) {
+  <p role="status">Chargement des sources…</p>
+} @else if (error()) {
+  <p role="alert">{{ error() }}</p>
+} @else {
+  <ul>
+    @for (source of sources(); track source.id) {
+      <li>
+        <strong>{{ source.name }}</strong>
+        — {{ source.countryCode }}
+        — {{ source.isEnabled ? 'Activée' : 'Désactivée' }}
+      </li>
+    } @empty {
+      <li>Aucune source RSS enregistrée.</li>
+    }
+  </ul>
+}
