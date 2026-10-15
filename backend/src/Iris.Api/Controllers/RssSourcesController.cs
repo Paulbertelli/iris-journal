@@ -8,8 +8,9 @@ namespace Iris.Api.Controllers;
 [Route("api/rss-sources")]
 public sealed class RssSourcesController(
     ListRssSourcesUseCase listRssSourcesUseCase,
-    AddRssSourceUseCase addRssSourceUseCase
-) : ControllerBase
+    AddRssSourceUseCase addRssSourceUseCase,
+    CollectRssSourceUseCase  collectRssSourceUseCase
+    ) : ControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> GetAll(
@@ -60,5 +61,19 @@ public sealed class RssSourcesController(
                 Status = StatusCodes.Status400BadRequest
             });
         }
+    }
+    
+    [HttpPost("{id:guid}/collect")]
+    public async Task<IActionResult> Collect(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        var result = await collectRssSourceUseCase.ExecuteAsync(id, cancellationToken);
+
+        if (result is null)
+            return NotFound();
+        
+        return Ok(new { addedCount = result.Value });
+
     }
 }
