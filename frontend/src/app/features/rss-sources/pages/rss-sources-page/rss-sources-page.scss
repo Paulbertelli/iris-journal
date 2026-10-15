@@ -1,0 +1,81 @@
+:host {
+  display: block;
+}
+
+form,
+li {
+  border: 1px solid var(--glass-border);
+  border-radius: 22px;
+  background: var(--glass-background);
+  box-shadow: var(--glass-shadow);
+  -webkit-backdrop-filter: blur(28px) saturate(110%);
+  backdrop-filter: blur(28px) saturate(110%);
+}
+
+form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) 140px;
+  align-items: start;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+}
+
+form > div {
+  min-width: 0;
+}
+
+label {
+  display: block;
+  margin-bottom: 0.4rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+form > p {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+form > button {
+  grid-column: 1 / -1;
+  justify-self: start;
+}
+
+ul {
+  display: grid;
+  gap: 1rem;
+  margin: 1rem 0 0;
+}
+
+li {
+  min-width: 0;
+  padding: 1.1rem 1.3rem;
+  overflow-wrap: anywhere;
+}
+
+li strong {
+  font-weight: 650;
+}
+
+li button {
+  display: block;
+  margin-top: 0.85rem;
+}
+
+@media (max-width: 760px) {
+  form {
+    grid-template-columns: 1fr;
+    padding: 1.1rem;
+  }
+
+  li {
+    padding: 1rem 1.1rem;
+  }
+}
+
+@media (max-width: 420px) {
+  form > button {
+    justify-self: stretch;
+  }
+}
