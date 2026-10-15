@@ -2,7 +2,7 @@
 using System.Text;
 using Iris.Infrastructure.Feeds;
 
-namespace Iris.Infrastructure.Tests;
+namespace Iris.Infrastructure.Tests.FeedsTests;
 
 public class RssFeedReaderTests
 {
