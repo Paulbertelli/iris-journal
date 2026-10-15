@@ -1,5 +1,7 @@
 ﻿using System.Net;
 using System.Text;
+using System.Xml;
+using Iris.Application.Abstractions.Feeds;
 using Iris.Infrastructure.Feeds;
 
 namespace Iris.Infrastructure.Tests.FeedsTests;
@@ -18,6 +20,31 @@ public class RssFeedReaderTests
                 Content = new StringContent(
                     xml, Encoding.UTF8, "application/rss+xml")
             });
+        }
+    }
+
+    private sealed class ThrowingHttpMessageHandler(
+        Exception exception) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            return Task.FromException<HttpResponseMessage>(exception);
+        }
+    }
+
+    private sealed class CancelingHttpMessageHandler(
+        CancellationTokenSource cancellation) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            cancellation.Cancel();
+
+            return Task.FromCanceled<HttpResponseMessage>(
+                cancellationToken);
         }
     }
 
@@ -136,5 +163,51 @@ public class RssFeedReaderTests
         var result = await reader.ReadAsync("https://example.com/feed");
 
         Assert.Empty(result);
+    }
+
+    [Fact]
+    public async Task ReadAsync_WithInvalidXml_ThrowsFeedReadException()
+    {
+        using var client = new HttpClient(
+            new StubHttpMessageHandler("<rss>"));
+
+        var reader = new RssFeedReader(client);
+
+        var exception = await Assert.ThrowsAsync<FeedReadException>(
+            () => reader.ReadAsync("https://example.com/feed"));
+
+        Assert.False(exception.IsTimeout);
+        Assert.IsType<XmlException>(exception.InnerException);
+    }
+
+    [Fact]
+    public async Task ReadAsync_WhenRequestTimesOut_ThrowsTimeoutFeedReadException()
+    {
+        using var client = new HttpClient(
+            new ThrowingHttpMessageHandler(
+                new TaskCanceledException("Délai dépassé")));
+
+        var reader = new RssFeedReader(client);
+
+        var exception = await Assert.ThrowsAsync<FeedReadException>(
+            () => reader.ReadAsync("https://example.com/feed"));
+
+        Assert.True(exception.IsTimeout);
+    }
+
+    [Fact]
+    public async Task ReadAsync_WhenCallerCancels_PropagatesCancellation()
+    {
+        using var cancellation = new CancellationTokenSource();
+
+        using var client = new HttpClient(
+            new CancelingHttpMessageHandler(cancellation));
+
+        var reader = new RssFeedReader(client);
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => reader.ReadAsync(
+                "https://example.com/feed",
+                cancellation.Token));
     }
 }
