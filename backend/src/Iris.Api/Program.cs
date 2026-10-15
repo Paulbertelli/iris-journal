@@ -15,6 +15,7 @@ var connectionString = builder.Configuration.GetConnectionString("IrisDatabase")
 builder.Services.AddDbContext<IrisDbContext>(options => options.UseSqlite(connectionString));
 
 builder.Services.AddScoped<IRssSourceRepository, RssSourceRepository>();
+builder.Services.AddScoped<IArticleRepository, ArticleRepository>();
 builder.Services.AddHttpClient<IRssFeedReader, RssFeedReader>();
 builder.Services.AddScoped<AddRssSourceUseCase>();
 builder.Services.AddScoped<ListRssSourcesUseCase>();

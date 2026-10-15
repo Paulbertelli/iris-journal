@@ -17,6 +17,38 @@ namespace Iris.Infrastructure.Persistence.Migrations
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.12");
 
+            modelBuilder.Entity("Iris.Domain.Entities.Article", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ArticleUrl")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("CollectedAt")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long?>("PublishedAt")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("RssSourceId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ArticleUrl")
+                        .IsUnique();
+
+                    b.HasIndex("RssSourceId");
+
+                    b.ToTable("Articles", (string)null);
+                });
+
             modelBuilder.Entity("Iris.Domain.Entities.RssSource", b =>
                 {
                     b.Property<Guid>("Id")
@@ -44,6 +76,15 @@ namespace Iris.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("RssSources", (string)null);
+                });
+
+            modelBuilder.Entity("Iris.Domain.Entities.Article", b =>
+                {
+                    b.HasOne("Iris.Domain.Entities.RssSource", null)
+                        .WithMany()
+                        .HasForeignKey("RssSourceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 #pragma warning restore 612, 618
         }
