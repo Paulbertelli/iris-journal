@@ -1,5 +1,46 @@
 <h1>Sources RSS</h1>
 
+<form [formGroup]="form" (ngSubmit)="submit()">
+  <div>
+    <label for="source-name">Nom</label>
+    <input id="source-name" formControlName="name" required />
+  </div>
+
+  <div>
+    <label for="source-url">URL du flux RSS</label>
+    <input
+      id="source-url"
+      type="url"
+      formControlName="feedUrl"
+      required
+    />
+  </div>
+
+  <div>
+    <label for="source-country">Code pays — deux lettres</label>
+    <input
+      id="source-country"
+      formControlName="countryCode"
+      maxlength="2"
+      required
+    />
+  </div>
+
+  @if (form.invalid && form.touched) {
+    <p role="alert">
+      Renseigne un nom, une URL HTTP ou HTTPS et un code pays de deux lettres.
+    </p>
+  }
+
+  @if (submitError()) {
+    <p role="alert">{{ submitError() }}</p>
+  }
+
+  <button type="submit" [disabled]="submitting()">
+    {{ submitting() ? 'Ajout en cours…' : 'Ajouter la source' }}
+  </button>
+</form>
+
 @if (loading()) {
   <p role="status">Chargement des sources…</p>
 } @else if (error()) {
