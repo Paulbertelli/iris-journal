@@ -14,4 +14,8 @@ public interface IRssSourceRepository
     
     Task<IReadOnlyList<RssSource>> GetAllAsync(
         CancellationToken cancellationToken);
+    
+    Task<RssSource?> GetByIdAsync(
+        Guid id,
+        CancellationToken cancellationToken);
 }

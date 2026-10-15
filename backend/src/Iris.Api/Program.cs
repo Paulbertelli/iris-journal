@@ -19,6 +19,7 @@ builder.Services.AddScoped<IArticleRepository, ArticleRepository>();
 builder.Services.AddHttpClient<IRssFeedReader, RssFeedReader>();
 builder.Services.AddScoped<AddRssSourceUseCase>();
 builder.Services.AddScoped<ListRssSourcesUseCase>();
+builder.Services.AddScoped<CollectRssSourceUseCase>();
 
 
 // Add services to the container.
