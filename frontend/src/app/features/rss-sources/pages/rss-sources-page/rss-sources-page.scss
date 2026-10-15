@@ -1,0 +1,59 @@
+:host {
+  display: block;
+}
+
+form {
+  display: grid;
+  grid-template-columns: 1fr 2fr 120px;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  border: 1px solid #d5dce7;
+  border-radius: 12px;
+  background: white;
+}
+
+form > div {
+  min-width: 0;
+}
+
+label {
+  display: block;
+  margin-bottom: 0.4rem;
+  font-weight: 600;
+}
+
+form > p {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+form > button {
+  grid-column: 1 / -1;
+  justify-self: start;
+}
+
+ul {
+  display: grid;
+  gap: 0.8rem;
+}
+
+li {
+  padding: 1rem 1.2rem;
+  border: 1px solid #d5dce7;
+  border-radius: 12px;
+  background: white;
+  overflow-wrap: anywhere;
+}
+
+li button {
+  display: block;
+  margin-top: 0.8rem;
+}
+
+@media (max-width: 760px) {
+  form {
+    grid-template-columns: 1fr;
+    padding: 1rem;
+  }
+}

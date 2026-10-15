@@ -1,1 +1,80 @@
 /* You can add global styles to this file, and also import other style files */
+:root {
+  font-family: system-ui, sans-serif;
+  color: #172033;
+  background: #f4f6fa;
+  line-height: 1.5;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+a {
+  color: #2457c5;
+  text-underline-offset: 3px;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  padding: 0.65rem 1rem;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: #2457c5;
+  color: white;
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  background: #1b439b;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+input {
+  width: 100%;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid #aab4c5;
+  border-radius: 8px;
+  background: white;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 3px solid #2457c5;
+  outline-offset: 3px;
+}
+
+[role='alert'] {
+  padding: 0.8rem 1rem;
+  border-left: 4px solid #b42318;
+  background: #fff0ee;
+  color: #8a1c13;
+}
+
+[role='status'] {
+  padding: 0.8rem 1rem;
+  border-left: 4px solid #2457c5;
+  background: #edf3ff;
+}
+
+h1 {
+  margin: 0 0 1.5rem;
+  font-size: clamp(1.6rem, 4vw, 2.2rem);
+}
+
+ul {
+  padding: 0;
+  list-style: none;
+}
