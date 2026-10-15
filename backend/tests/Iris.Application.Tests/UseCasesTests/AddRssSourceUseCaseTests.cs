@@ -2,7 +2,7 @@
 using Iris.Application.UseCases.RssSources;
 using Iris.Domain.Entities;
 
-namespace Iris.Application.Tests;
+namespace Iris.Application.Tests.UseCasesTests;
 
 public class AddRssSourceUseCaseTests
 {
@@ -73,6 +73,11 @@ public class AddRssSourceUseCaseTests
             CancellationToken cancellationToken)
         {
             return Task.FromResult<IReadOnlyList<RssSource>>(_sources.OrderBy(source => source.Name).ToList());
+        }
+
+        public Task<RssSource?> GetByIdAsync(Guid id, CancellationToken cancellationToken)
+        {
+            return Task.FromResult<RssSource?>(_sources.SingleOrDefault(source => source.Id == id));
         }
     }
 }
