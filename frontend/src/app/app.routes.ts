@@ -13,4 +13,11 @@ export const routes: Routes = [
         (module) => module.RssSourcesPage,
       ),
   },
+  {
+    path: 'articles',
+    loadComponent: () =>
+      import('./features/articles/pages/articles-page/articles-page').then(
+        (module) => module.ArticlesPage,
+      ),
+  },
 ];
