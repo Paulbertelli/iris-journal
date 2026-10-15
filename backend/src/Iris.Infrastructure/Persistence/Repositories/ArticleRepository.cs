@@ -16,4 +16,14 @@ public sealed class ArticleRepository(IrisDbContext dbContext) : IArticleReposit
         dbContext.Articles.Add(article); 
         await dbContext.SaveChangesAsync(cancellationToken);
     }
+
+    public async Task<IReadOnlyList<Article>> GetLatestAsync(int limit, CancellationToken cancellationToken)
+    {
+        return await dbContext.Articles
+            .AsNoTracking()
+            .OrderByDescending(article => article.CollectedAt)
+            .ThenByDescending(article => article.Id )
+            .Take(limit)
+            .ToListAsync(cancellationToken);
+    }
 }

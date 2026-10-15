@@ -221,6 +221,20 @@ public class CollectRssSourceUseCaseTests
             _articles.Add(article);
             return Task.CompletedTask;
         }
+
+        public Task<IReadOnlyList<Article>> GetLatestAsync(
+            int limit,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            return Task.FromResult<IReadOnlyList<Article>>(
+                _articles
+                    .OrderByDescending(article => article.CollectedAt)
+                    .ThenByDescending(article => article.Id)
+                    .Take(limit)
+                    .ToList());
+        }
     }
 
     private sealed class FakeRssSourceRepository(

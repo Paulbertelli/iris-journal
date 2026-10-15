@@ -193,8 +193,54 @@ public class ArticleRepositoryTests
         dbContext.ChangeTracker.Clear();
         Assert.Empty(await dbContext.Articles.ToListAsync());
     }
+    
+    [Fact]
+    public async Task GetLatestAsync_ReturnsLatestArticlesUpToLimit()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
 
-    private static async Task<RssSource> CreateSourceAsync(
+        var options = new DbContextOptionsBuilder<IrisDbContext>()
+            .UseSqlite(connection)
+            .Options;
+
+        await using var dbContext = new IrisDbContext(options);
+        await dbContext.Database.MigrateAsync();
+
+        var source = await CreateSourceAsync(dbContext);
+        var repository = new ArticleRepository(dbContext);
+
+        var oldest = new Article(
+            source.Id, "Ancien", "https://example.com/oldest");
+        var middle = new Article(
+            source.Id, "Intermédiaire", "https://example.com/middle");
+        var newest = new Article(
+            source.Id, "Récent", "https://example.com/newest");
+
+        var date = new DateTimeOffset(
+            2026, 10, 15, 10, 0, 0, TimeSpan.Zero);
+
+        dbContext.Articles.AddRange(middle, newest, oldest);
+
+        dbContext.Entry(oldest)
+            .Property(article => article.CollectedAt).CurrentValue = date;
+        dbContext.Entry(middle)
+            .Property(article => article.CollectedAt).CurrentValue = date.AddMinutes(1);
+        dbContext.Entry(newest)
+            .Property(article => article.CollectedAt).CurrentValue = date.AddMinutes(2);
+
+        await dbContext.SaveChangesAsync();
+        dbContext.ChangeTracker.Clear();
+
+        var result = await repository.GetLatestAsync(
+            2, CancellationToken.None);
+
+        Assert.Equal(
+            [newest.Id, middle.Id],
+            result.Select(article => article.Id));
+    }
+
+    private async static Task<RssSource> CreateSourceAsync(
         IrisDbContext dbContext)
     {
         var source = new RssSource(
