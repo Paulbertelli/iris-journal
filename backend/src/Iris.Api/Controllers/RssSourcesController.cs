@@ -25,7 +25,9 @@ public sealed class RssSourcesController(
             Name = source.Name,
             FeedUrl = source.FeedUrl,
             CountryCode = source.CountryCode,
-            IsEnabled = source.IsEnabled
+            IsEnabled = source.IsEnabled,
+            Description = source.Description,
+            LogoUrl = source.LogoUrl,
         }).ToList();
 
         return Ok(response);
@@ -41,6 +43,8 @@ public sealed class RssSourcesController(
                 request.Name,
                 request.FeedUrl,
                 request.CountryCode,
+                description: request.Description,
+                logoUrl: request.LogoUrl,
                 cancellationToken);
 
             if (id is null)

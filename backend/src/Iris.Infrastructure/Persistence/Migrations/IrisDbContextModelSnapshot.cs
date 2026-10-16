@@ -59,12 +59,18 @@ namespace Iris.Infrastructure.Persistence.Migrations
                         .HasMaxLength(2)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("Description")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("FeedUrl")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<bool>("IsEnabled")
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("LogoUrl")
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("Name")
                         .IsRequired()

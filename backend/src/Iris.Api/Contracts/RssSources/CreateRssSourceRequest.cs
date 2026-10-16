@@ -13,4 +13,6 @@ public sealed class CreateRssSourceRequest
     [Required]
     [StringLength(2, MinimumLength = 2)]
     public string CountryCode { get; init; } = string.Empty;
+    public string? Description { get; init; }
+    public string? LogoUrl { get; init; }
 }

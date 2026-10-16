@@ -7,4 +7,6 @@ public sealed class RssSourceResponse
     public string FeedUrl { get; init; } = string.Empty;
     public string CountryCode { get; init; } = string.Empty;
     public bool IsEnabled { get; init; }
+    public string? Description { get; init; }
+    public string? LogoUrl { get; init; }
 }
