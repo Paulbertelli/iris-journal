@@ -10,7 +10,8 @@ namespace Iris.Api.Controllers;
 public sealed class RssSourcesController(
     ListRssSourcesUseCase listRssSourcesUseCase,
     AddRssSourceUseCase addRssSourceUseCase,
-    CollectRssSourceUseCase collectRssSourceUseCase
+    CollectRssSourceUseCase collectRssSourceUseCase,
+    UpdateRssSourceUseCase updateRssSourceUseCase
 ) : ControllerBase
 {
     [HttpGet]
@@ -87,6 +88,50 @@ public sealed class RssSourcesController(
             var status = exception.IsTimeout ? StatusCodes.Status504GatewayTimeout : StatusCodes.Status502BadGateway;
 
             return Problem(statusCode: status, title: "Échec de la collecte RSS", detail: exception.Message);
+        }
+    }
+    
+    [HttpPut("{id:guid}")]
+    public async Task<IActionResult> Update(
+        Guid id,
+        [FromBody] UpdateRssSourceRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await updateRssSourceUseCase.ExecuteAsync(
+                id,
+                request.Name,
+                request.FeedUrl,
+                request.CountryCode,
+                request.IsEnabled!.Value,
+                request.Description,
+                request.LogoUrl,
+                cancellationToken);
+
+            return result switch
+            {
+                UpdateRssSourceResult.Updated => NoContent(),
+                UpdateRssSourceResult.NotFound => NotFound(),
+                UpdateRssSourceResult.DuplicateFeedUrl => Conflict(
+                    new ProblemDetails
+                    {
+                        Title = "Source RSS déjà enregistrée",
+                        Detail = "Une source utilise déjà cette URL.",
+                        Status = StatusCodes.Status409Conflict
+                    }),
+                _ => throw new InvalidOperationException(
+                    "Résultat de modification inconnu.")
+            };
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest(new ProblemDetails
+            {
+                Title = "Données invalides",
+                Detail = exception.Message,
+                Status = StatusCodes.Status400BadRequest
+            });
         }
     }
 }

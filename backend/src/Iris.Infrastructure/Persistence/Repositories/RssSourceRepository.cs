@@ -31,4 +31,9 @@ public sealed class RssSourceRepository(IrisDbContext dbContext) : IRssSourceRep
     {
         return await dbContext.RssSources.SingleOrDefaultAsync(source => source.Id == id, cancellationToken);
     }
+    
+    public Task SaveChangesAsync(CancellationToken cancellationToken)
+    {
+        return dbContext.SaveChangesAsync(cancellationToken);
+    }
 }

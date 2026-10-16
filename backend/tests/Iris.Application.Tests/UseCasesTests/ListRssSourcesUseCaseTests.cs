@@ -69,5 +69,10 @@ public class ListRssSourcesUseCaseTests
         {
             throw new NotSupportedException();
         }
+        
+        public Task SaveChangesAsync(CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
     }
 }
