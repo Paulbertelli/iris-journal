@@ -9,9 +9,11 @@ public sealed class AddRssSourceUseCase(IRssSourceRepository rssSourceRepository
         string name,
         string feedUrl,
         string countryCode,
+        string? description = null,
+        string? logoUrl = null,
         CancellationToken cancellationToken = default)
     {
-        var source = new RssSource(name, feedUrl, countryCode);
+        var source = new RssSource(name, feedUrl, countryCode, description: description, logoUrl: logoUrl);
 
         var alreadyExists = await rssSourceRepository.ExistsByFeedUrlAsync(
             source.FeedUrl,

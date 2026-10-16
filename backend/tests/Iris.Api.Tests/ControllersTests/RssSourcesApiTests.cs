@@ -45,6 +45,48 @@ public class RssSourcesApiTests
         Assert.NotNull(body);
         Assert.NotEqual(Guid.Empty, body.Id);
     }
+    
+    [Fact]
+    public async Task Create_WithDetails_PersistsAndReturnsDescriptionAndLogo()
+    {
+        await using var factory = new IrisApiFactory();
+        factory.CreateDatabase();
+
+        using var client = factory.CreateClient();
+
+        using var createResponse = await client.PostAsJsonAsync(
+            "/api/rss-sources",
+            new
+            {
+                name = "Source test",
+                feedUrl = "https://example.com/feed",
+                countryCode = "FR",
+                description = " Description test ",
+                logoUrl = " https://example.com/logo.png "
+            });
+
+        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+
+        var created = await createResponse.Content
+            .ReadFromJsonAsync<CreateRssSourceResponse>();
+
+        Assert.NotNull(created);
+
+        using var getResponse = await client.GetAsync("/api/rss-sources");
+
+        Assert.Equal(HttpStatusCode.OK, getResponse.StatusCode);
+
+        var sources = await getResponse.Content
+            .ReadFromJsonAsync<List<RssSourceResponse>>();
+
+        Assert.NotNull(sources);
+
+        var source = Assert.Single(sources);
+
+        Assert.Equal(created.Id, source.Id);
+        Assert.Equal("Description test", source.Description);
+        Assert.Equal("https://example.com/logo.png", source.LogoUrl);
+    }
 
     [Fact]
     public async Task Create_WithDuplicateFeedUrl_ReturnsConflict()
