@@ -210,4 +210,65 @@ public class RssFeedReaderTests
                 "https://example.com/feed",
                 cancellation.Token));
     }
+    
+    [Theory]
+    [InlineData(
+        """<media:content url="https://example.com/photo.jpg" width="644" height="322" />""",
+        "https://example.com/photo.jpg")]
+    [InlineData(
+        """<media:content url="https://example.com/photo.jpg" medium="image" />""",
+        "https://example.com/photo.jpg")]
+    [InlineData(
+        """<media:content url="https://example.com/photo.png" type="image/png" />""",
+        "https://example.com/photo.png")]
+    [InlineData(
+        """<enclosure url="https://example.com/photo.jpg" type="image/jpeg" length="123" />""",
+        "https://example.com/photo.jpg")]
+    [InlineData(
+        """<media:thumbnail url="https://example.com/thumb.jpg" />""",
+        "https://example.com/thumb.jpg")]
+    [InlineData("", null)]
+    [InlineData(
+        """<media:content url="https://example.com/video.mp4" medium="video" />""",
+        null)]
+    [InlineData(
+        """<media:thumbnail url="ftp://example.com/photo.jpg" />""",
+        null)]
+    [InlineData(
+        """
+        <media:content url="adresse-invalide" medium="image" />
+        <media:thumbnail url="https://example.com/fallback.jpg" />
+        """,
+        "https://example.com/fallback.jpg")]
+    [InlineData(
+        """
+        <media:thumbnail url="https://example.com/thumb.jpg" />
+        <media:content url="https://example.com/full.jpg" medium="image" />
+        """,
+        "https://example.com/full.jpg")]
+    public async Task ReadAsync_WithImageMetadata_ReturnsExpectedImageUrl(
+        string imageMetadata,
+        string? expectedImageUrl)
+    {
+        var xml = $"""
+                   <rss version="2.0" xmlns:media="http://search.yahoo.com/mrss/">
+                     <channel>
+                       <item>
+                         <title>Article test</title>
+                         <link>https://example.com/article</link>
+                         {imageMetadata}
+                       </item>
+                     </channel>
+                   </rss>
+                   """;
+
+        using var client = new HttpClient(new StubHttpMessageHandler(xml));
+        var reader = new RssFeedReader(client);
+
+        var result = await reader.ReadAsync("https://example.com/feed");
+
+        var item = Assert.Single(result);
+
+        Assert.Equal(expectedImageUrl, item.ImageUrl);
+    }
 }

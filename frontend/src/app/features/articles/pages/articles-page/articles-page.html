@@ -9,10 +9,7 @@
     @for (article of articles(); track article.id) {
       <li class="article-card">
         <div class="article-logo">
-          @if (
-            article.sourceLogoUrl &&
-            !failedLogoUrls().has(article.sourceLogoUrl)
-          ) {
+          @if (article.sourceLogoUrl && !failedLogoUrls().has(article.sourceLogoUrl)) {
             <img
               [src]="article.sourceLogoUrl"
               alt=""
@@ -34,25 +31,29 @@
             @if (article.publishedAt) {
               <span class="article-meta-separator" aria-hidden="true">·</span>
 
-              <time
-                class="article-relative-date"
-                [attr.datetime]="article.publishedAt"
-              >
+              <time class="article-relative-date" [attr.datetime]="article.publishedAt">
                 {{ relativePublishedAt(article.publishedAt) }}
               </time>
             }
           </div>
 
           <h2 class="article-title">
-            <a
-              [href]="article.articleUrl"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
+            <a [href]="article.articleUrl" target="_blank" rel="noopener noreferrer">
               {{ article.title }}
             </a>
           </h2>
         </div>
+
+        @if (article.imageUrl && !failedImageUrls().has(article.imageUrl)) {
+          <img
+            class="article-image"
+            [src]="article.imageUrl"
+            alt=""
+            loading="lazy"
+            referrerpolicy="no-referrer"
+            (error)="markImageFailed(article.imageUrl)"
+          />
+        }
 
         <footer class="article-footer">
           @if (article.publishedAt) {

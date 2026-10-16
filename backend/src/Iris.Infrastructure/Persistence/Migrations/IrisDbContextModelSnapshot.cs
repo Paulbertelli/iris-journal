@@ -29,6 +29,9 @@ namespace Iris.Infrastructure.Persistence.Migrations
                     b.Property<long>("CollectedAt")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("ImageUrl")
+                        .HasColumnType("TEXT");
+
                     b.Property<long?>("PublishedAt")
                         .HasColumnType("INTEGER");
 

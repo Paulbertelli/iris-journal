@@ -7,4 +7,5 @@ export interface Article {
   collectedAt: string;
   sourceName: string;
   sourceLogoUrl: string | null;
+  imageUrl: string | null;
 }

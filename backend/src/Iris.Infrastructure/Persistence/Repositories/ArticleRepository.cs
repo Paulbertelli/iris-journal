@@ -35,6 +35,7 @@ public sealed class ArticleRepository(IrisDbContext dbContext) : IArticleReposit
                 SourceLogoUrl = source.LogoUrl,
                 Title = article.Title,
                 ArticleUrl = article.ArticleUrl,
+                ImageUrl = article.ImageUrl,
                 PublishedAt = article.PublishedAt,
                 CollectedAt = article.CollectedAt
             };
