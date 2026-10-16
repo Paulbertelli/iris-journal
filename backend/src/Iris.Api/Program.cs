@@ -22,6 +22,7 @@ builder.Services.AddScoped<AddRssSourceUseCase>();
 builder.Services.AddScoped<ListRssSourcesUseCase>();
 builder.Services.AddScoped<CollectRssSourceUseCase>();
 builder.Services.AddScoped<ListArticlesUseCase>();
+builder.Services.AddScoped<UpdateRssSourceUseCase>();
 
 
 // Add services to the container.

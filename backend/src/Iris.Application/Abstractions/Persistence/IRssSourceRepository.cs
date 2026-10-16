@@ -18,4 +18,6 @@ public interface IRssSourceRepository
     Task<RssSource?> GetByIdAsync(
         Guid id,
         CancellationToken cancellationToken);
+    
+    Task SaveChangesAsync(CancellationToken cancellationToken);
 }

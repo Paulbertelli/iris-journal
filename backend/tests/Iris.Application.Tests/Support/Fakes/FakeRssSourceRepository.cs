@@ -35,4 +35,10 @@ public sealed class FakeRssSourceRepository(params RssSource[] initialSources) :
     {
         return Task.FromResult<RssSource?>(_sources.SingleOrDefault(source => source.Id == id));
     }
+    
+    public Task SaveChangesAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.CompletedTask;
+    }
 }

@@ -45,7 +45,7 @@ public class RssSourcesApiTests
         Assert.NotNull(body);
         Assert.NotEqual(Guid.Empty, body.Id);
     }
-    
+
     [Fact]
     public async Task Create_WithDetails_PersistsAndReturnsDescriptionAndLogo()
     {
@@ -460,7 +460,7 @@ public class RssSourcesApiTests
 
         Assert.Empty(await dbContext.Articles.ToListAsync());
     }
-    
+
     [Fact]
     public async Task Collect_WhenUnexpectedErrorOccurs_ReturnsGenericInternalServerError()
     {
@@ -513,5 +513,154 @@ public class RssSourcesApiTests
 
         Assert.DoesNotContain(internalMessage, content);
         Assert.DoesNotContain(nameof(InvalidOperationException), content);
+    }
+
+    [Fact]
+    public async Task Update_WithValidData_PersistsChanges()
+    {
+        await using var factory = new IrisApiFactory();
+        factory.CreateDatabase();
+
+        using var client = factory.CreateClient();
+
+        using var createResponse = await client.PostAsJsonAsync(
+            "/api/rss-sources",
+            new
+            {
+                name = "Source initiale",
+                feedUrl = "https://example.com/feed",
+                countryCode = "FR",
+                description = "Ancienne description",
+                logoUrl = "https://example.com/old-logo.png"
+            });
+
+        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+
+        var created = await createResponse.Content
+            .ReadFromJsonAsync<CreateRssSourceResponse>();
+
+        Assert.NotNull(created);
+
+        using var updateResponse = await client.PutAsJsonAsync(
+            $"/api/rss-sources/{created.Id}",
+            new
+            {
+                name = " Nouveau nom ",
+                feedUrl = "https://example.com/feed",
+                countryCode = "gb",
+                isEnabled = false,
+                description = (string?)null,
+                logoUrl = (string?)null
+            });
+
+        Assert.Equal(HttpStatusCode.NoContent, updateResponse.StatusCode);
+
+        using var getResponse = await client.GetAsync("/api/rss-sources");
+        Assert.Equal(HttpStatusCode.OK, getResponse.StatusCode);
+
+        var sources = await getResponse.Content
+            .ReadFromJsonAsync<List<RssSourceResponse>>();
+
+        Assert.NotNull(sources);
+
+        var source = Assert.Single(sources);
+
+        Assert.Equal(created.Id, source.Id);
+        Assert.Equal("Nouveau nom", source.Name);
+        Assert.Equal("https://example.com/feed", source.FeedUrl);
+        Assert.Equal("GB", source.CountryCode);
+        Assert.False(source.IsEnabled);
+        Assert.Null(source.Description);
+        Assert.Null(source.LogoUrl);
+    }
+
+    [Fact]
+    public async Task Update_WithDuplicateFeedUrl_ReturnsConflictWithoutChangingSource()
+    {
+        await using var factory = new IrisApiFactory();
+        factory.CreateDatabase();
+
+        using var client = factory.CreateClient();
+
+        using var firstResponse = await client.PostAsJsonAsync(
+            "/api/rss-sources",
+            new
+            {
+                name = "Première source",
+                feedUrl = "https://example.com/first",
+                countryCode = "FR"
+            });
+
+        Assert.Equal(HttpStatusCode.Created, firstResponse.StatusCode);
+
+        using var secondResponse = await client.PostAsJsonAsync(
+            "/api/rss-sources",
+            new
+            {
+                name = "Deuxième source",
+                feedUrl = "https://example.com/second",
+                countryCode = "GB"
+            });
+
+        Assert.Equal(HttpStatusCode.Created, secondResponse.StatusCode);
+
+        var second = await secondResponse.Content
+            .ReadFromJsonAsync<CreateRssSourceResponse>();
+
+        Assert.NotNull(second);
+
+        using var updateResponse = await client.PutAsJsonAsync(
+            $"/api/rss-sources/{second.Id}",
+            new
+            {
+                name = "Nom modifié",
+                feedUrl = "https://example.com/first",
+                countryCode = "FR",
+                isEnabled = false,
+                description = "Modification refusée",
+                logoUrl = "https://example.com/logo.png"
+            });
+
+        Assert.Equal(HttpStatusCode.Conflict, updateResponse.StatusCode);
+
+        using var getResponse = await client.GetAsync("/api/rss-sources");
+        Assert.Equal(HttpStatusCode.OK, getResponse.StatusCode);
+
+        var sources = await getResponse.Content
+            .ReadFromJsonAsync<List<RssSourceResponse>>();
+
+        Assert.NotNull(sources);
+        Assert.Equal(2, sources.Count);
+
+        var unchanged = Assert.Single(
+            sources, source => source.Id == second.Id);
+
+        Assert.Equal("Deuxième source", unchanged.Name);
+        Assert.Equal("https://example.com/second", unchanged.FeedUrl);
+        Assert.Equal("GB", unchanged.CountryCode);
+        Assert.True(unchanged.IsEnabled);
+        Assert.Null(unchanged.Description);
+        Assert.Null(unchanged.LogoUrl);
+    }
+
+    [Fact]
+    public async Task Update_WhenSourceIsUnknown_ReturnsNotFound()
+    {
+        await using var factory = new IrisApiFactory();
+        factory.CreateDatabase();
+
+        using var client = factory.CreateClient();
+
+        using var response = await client.PutAsJsonAsync(
+            $"/api/rss-sources/{Guid.NewGuid()}",
+            new
+            {
+                name = "Source inconnue",
+                feedUrl = "https://example.com/feed",
+                countryCode = "FR",
+                isEnabled = true
+            });
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 }
