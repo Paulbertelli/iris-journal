@@ -20,13 +20,19 @@ export class RssSourcesPage implements OnInit {
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
   readonly collectingId = signal<string | null>(null);
-  readonly collectionMessage = signal<string | null>(null);
-  readonly collectionError = signal<string | null>(null);
+  readonly collectionFeedback = signal<Record<string, { message: string; error: boolean }>>({});
+  readonly editingId = signal<string | null>(null);
+  readonly deletingId = signal<string | null>(null);
+  readonly deleteError = signal<string | null>(null);
+  readonly failedLogoUrls = signal<ReadonlySet<string>>(new Set());
 
   readonly form = this.formBuilder.group({
-    name: ['', Validators.required],
+    name: ['', [Validators.required, Validators.pattern(/\S/)]],
     feedUrl: ['', [Validators.required, Validators.pattern(/^https?:\/\/\S+$/i)]],
     countryCode: ['FR', [Validators.required, Validators.pattern(/^[a-zA-Z]{2}$/)]],
+    description: [''],
+    logoUrl: ['', Validators.pattern(/^https?:\/\/\S+$/i)],
+    isEnabled: [true],
   });
 
   ngOnInit(): void {
@@ -50,6 +56,8 @@ export class RssSourcesPage implements OnInit {
   }
 
   submit(): void {
+    if (this.deletingId() !== null) return;
+
     if (this.submitting()) return;
 
     if (this.form.invalid) {
@@ -61,54 +69,158 @@ export class RssSourcesPage implements OnInit {
     this.submitError.set(null);
 
     const values = this.form.getRawValue();
+    const id = this.editingId();
 
-    this.api
-      .create({
-        name: values.name.trim(),
-        feedUrl: values.feedUrl.trim(),
-        countryCode: values.countryCode.toUpperCase(),
-      })
-      .subscribe({
-        next: () => {
-          this.submitting.set(false);
-          this.form.reset({ name: '', feedUrl: '', countryCode: 'FR' });
-          this.loadSources();
-        },
-        error: (error: HttpErrorResponse) => {
-          this.submitting.set(false);
-          this.submitError.set(
-            error.status === 409
-              ? 'Cette URL est déjà enregistrée.'
-              : 'Impossible d’ajouter la source. Vérifie les données et réessaie.',
-          );
-        },
+    const request = {
+      name: values.name.trim(),
+      feedUrl: values.feedUrl.trim(),
+      countryCode: values.countryCode.toUpperCase(),
+      description: values.description.trim() || null,
+      logoUrl: values.logoUrl.trim() || null,
+      isEnabled: values.isEnabled,
+    };
+
+    const onSuccess = (): void => {
+      this.submitting.set(false);
+      this.resetForm();
+      this.loadSources();
+    };
+
+    const onError = (error: HttpErrorResponse): void => {
+      this.submitting.set(false);
+      this.submitError.set(
+        error.status === 409
+          ? 'Cette URL est déjà enregistrée.'
+          : error.status === 404
+            ? 'Cette source n’existe plus.'
+            : 'Impossible d’enregistrer la source. Vérifie les données et réessaie.',
+      );
+    };
+
+    if (id !== null) {
+      this.api.update(id, request).subscribe({
+        next: onSuccess,
+        error: onError,
       });
+    } else {
+      this.api.create(request).subscribe({
+        next: onSuccess,
+        error: onError,
+      });
+    }
   }
 
   collect(id: string): void {
-    if (this.collectingId() !== null) return;
+    if (this.collectingId() !== null || this.deletingId() !== null) return;
 
     this.collectingId.set(id);
-    this.collectionMessage.set(null);
-    this.collectionError.set(null);
+
+    this.collectionFeedback.update((feedback) => {
+      const updated = { ...feedback };
+      delete updated[id];
+      return updated;
+    });
 
     this.api.collect(id).subscribe({
       next: ({ addedCount }) => {
         this.collectingId.set(null);
-        this.collectionMessage.set(`${addedCount} nouvel(s) article(s) collecté(s).`);
+
+        const message =
+          addedCount === 0
+            ? 'Aucun nouvel article.'
+            : `${addedCount} nouvel${addedCount > 1 ? 's' : ''} article${addedCount > 1 ? 's' : ''} collecté${addedCount > 1 ? 's' : ''}.`;
+
+        this.collectionFeedback.update((feedback) => ({
+          ...feedback,
+          [id]: { message, error: false },
+        }));
       },
       error: (error: HttpErrorResponse) => {
         this.collectingId.set(null);
 
         const message =
           error.status === 504
-            ? 'Le site met trop de temps à répondre. Réessaie plus tard.'
+            ? 'Le site met trop de temps à répondre.'
             : error.status === 502
-              ? 'Impossible de lire le flux de cette source.'
+              ? 'Impossible de lire ce flux.'
               : 'La collecte a échoué. Réessaie.';
 
-        this.collectionError.set(message);
+        this.collectionFeedback.update((feedback) => ({
+          ...feedback,
+          [id]: { message, error: true },
+        }));
       },
     });
+  }
+
+  edit(source: RssSource): void {
+    if (this.deletingId() !== null) return;
+
+    if (this.submitting()) return;
+
+    this.editingId.set(source.id);
+    this.submitError.set(null);
+
+    this.form.reset({
+      name: source.name,
+      feedUrl: source.feedUrl,
+      countryCode: source.countryCode,
+      description: source.description ?? '',
+      logoUrl: source.logoUrl ?? '',
+      isEnabled: source.isEnabled,
+    });
+  }
+
+  cancelEdit(): void {
+    if (this.submitting()) return;
+
+    this.resetForm();
+  }
+
+  private resetForm(): void {
+    this.editingId.set(null);
+    this.submitError.set(null);
+
+    this.form.reset({
+      name: '',
+      feedUrl: '',
+      countryCode: 'FR',
+      description: '',
+      logoUrl: '',
+      isEnabled: true,
+    });
+  }
+
+  deleteSource(source: RssSource): void {
+    if (this.deletingId() !== null || this.submitting() || this.collectingId() !== null) return;
+
+    const confirmed = window.confirm(
+      `Supprimer « ${source.name} » et tous ses articles ? Cette action est définitive.`,
+    );
+
+    if (!confirmed) return;
+
+    this.deletingId.set(source.id);
+    this.deleteError.set(null);
+
+    this.api.delete(source.id).subscribe({
+      next: () => {
+        if (this.editingId() === source.id) {
+          this.resetForm();
+        }
+
+        this.sources.update((sources) => sources.filter((item) => item.id !== source.id));
+
+        this.deletingId.set(null);
+      },
+      error: () => {
+        this.deletingId.set(null);
+        this.deleteError.set('Impossible de supprimer la source. Réessaie.');
+      },
+    });
+  }
+
+  markLogoFailed(url: string): void {
+    this.failedLogoUrls.update((urls) => new Set([...urls, url]));
   }
 }

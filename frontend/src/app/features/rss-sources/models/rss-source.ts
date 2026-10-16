@@ -4,4 +4,6 @@ export interface RssSource {
   feedUrl: string;
   countryCode: string;
   isEnabled: boolean;
+  description: string | null;
+  logoUrl: string | null;
 }

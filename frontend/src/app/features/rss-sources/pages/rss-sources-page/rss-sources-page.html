@@ -15,9 +15,27 @@
     <label for="source-country">Code pays — deux lettres</label>
     <input id="source-country" formControlName="countryCode" maxlength="2" required />
   </div>
+  <div class="full-width">
+    <label for="source-description">Description</label>
+    <textarea id="source-description" formControlName="description" rows="3"></textarea>
+  </div>
+
+  <div class="full-width">
+    <label for="source-logo">URL du logo — facultative</label>
+    <input id="source-logo" type="url" formControlName="logoUrl" />
+  </div>
+
+  @if (editingId() !== null) {
+    <div class="full-width">
+      <label class="checkbox-label">
+        <input type="checkbox" formControlName="isEnabled" />
+        Source activée
+      </label>
+    </div>
+  }
 
   @if (form.invalid && form.touched) {
-    <p role="alert">Renseigne un nom, une URL HTTP ou HTTPS et un code pays de deux lettres.</p>
+    <p role="alert">Vérifie le nom, les URL HTTP ou HTTPS et le code pays de deux lettres.</p>
   }
 
   @if (submitError()) {
@@ -25,30 +43,107 @@
   }
 
   <button type="submit" [disabled]="submitting()">
-    {{ submitting() ? 'Ajout en cours…' : 'Ajouter la source' }}
+    {{
+      submitting()
+        ? 'Enregistrement…'
+        : editingId() !== null
+          ? 'Enregistrer les modifications'
+          : 'Ajouter la source'
+    }}
   </button>
+
+  @if (editingId() !== null) {
+    <button type="button" [disabled]="submitting()" (click)="cancelEdit()">Annuler</button>
+  }
 </form>
+
+@if (deleteError()) {
+  <p role="alert">{{ deleteError() }}</p>
+}
 
 @if (loading()) {
   <p role="status">Chargement des sources…</p>
 } @else if (error()) {
   <p role="alert">{{ error() }}</p>
 } @else {
-  @if (collectionMessage()) {
-    <p role="status">{{ collectionMessage() }}</p>
-  }
-
-  @if (collectionError()) {
-    <p role="alert">{{ collectionError() }}</p>
-  }
   <ul>
     @for (source of sources(); track source.id) {
-      <li>
-        <strong>{{ source.name }}</strong>
-        — {{ source.countryCode }} — {{ source.isEnabled ? 'Activée' : 'Désactivée' }}
-        <button type="button" [disabled]="collectingId() !== null" (click)="collect(source.id)">
-          {{ collectingId() === source.id ? 'Collecte en cours…' : 'Collecter' }}
-        </button>
+      <li class="source-card">
+        <div class="source-avatar">
+          @if (source.logoUrl && !failedLogoUrls().has(source.logoUrl)) {
+            <img
+              [src]="source.logoUrl"
+              alt=""
+              loading="lazy"
+              referrerpolicy="no-referrer"
+              (error)="markLogoFailed(source.logoUrl)"
+            />
+          } @else {
+            <img src="/images/rss-default.png" alt="logo rss-default" />
+          }
+        </div>
+
+        <div class="source-content">
+          <div class="source-heading">
+            <h2>{{ source.name }}</h2>
+            <span class="source-country">{{ source.countryCode }}</span>
+
+            <span
+              class="source-state"
+              [class.source-state-active]="source.isEnabled"
+              [attr.aria-label]="source.isEnabled ? 'Source activée' : 'Source désactivée'"
+              role="img"
+              [title]="source.isEnabled ? 'Activée' : 'Désactivée'"
+            ></span>
+          </div>
+
+          @if (source.description) {
+            <p class="source-description">{{ source.description }}</p>
+          }
+        </div>
+
+        <div class="source-actions">
+          <button
+            type="button"
+            class="icon-button"
+            [disabled]="collectingId() !== null || deletingId() !== null"
+            (click)="collect(source.id)"
+            [attr.aria-label]="'Collecter les articles de ' + source.name"
+            title="Collecter"
+          >
+            <span class="action-icon icon-collect" aria-hidden="true"></span>
+          </button>
+
+          <button
+            type="button"
+            class="icon-button"
+            [disabled]="submitting() || deletingId() !== null"
+            (click)="edit(source)"
+            [attr.aria-label]="'Modifier ' + source.name"
+            title="Modifier"
+          >
+            <span class="action-icon icon-edit" aria-hidden="true"></span>
+          </button>
+
+          <button
+            type="button"
+            class="icon-button delete-button"
+            [disabled]="deletingId() !== null || submitting() || collectingId() !== null"
+            (click)="deleteSource(source)"
+            [attr.aria-label]="'Supprimer ' + source.name"
+            title="Supprimer"
+          >
+            <span class="action-icon icon-delete" aria-hidden="true"></span>
+          </button>
+        </div>
+
+        @if (collectingId() === source.id) {
+          <p class="source-feedback" role="status">Collecte en cours…</p>
+        } @else if (collectionFeedback()[source.id]; as feedback) {
+          <p class="source-feedback" [attr.role]="feedback.error ? 'alert' : 'status'">
+            {{ feedback.message }}
+          </p>
+        }
       </li>
     } @empty {
       <li>Aucune source RSS enregistrée.</li>
