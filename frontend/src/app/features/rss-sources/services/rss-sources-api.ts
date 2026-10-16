@@ -3,6 +3,7 @@ import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { RssSource } from '../models/rss-source';
 import { CreateRssSourceRequest } from '../models/create-rss-source-request';
+import { UpdateRssSourceRequest } from '../models/update-rss-source-request';
 
 @Injectable({ providedIn: 'root' })
 export class RssSourcesApi {
@@ -18,5 +19,13 @@ export class RssSourcesApi {
 
   collect(id: string): Observable<{ addedCount: number }> {
     return this.http.post<{ addedCount: number }>(`/api/rss-sources/${id}/collect`, null);
+  }
+
+  update(id: string, request: UpdateRssSourceRequest): Observable<void> {
+    return this.http.put<void>(`/api/rss-sources/${id}`, request);
+  }
+
+  delete(id: string): Observable<void> {
+    return this.http.delete<void>(`/api/rss-sources/${id}`);
   }
 }
