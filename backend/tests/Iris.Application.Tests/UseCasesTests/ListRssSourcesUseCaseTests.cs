@@ -11,8 +11,8 @@ public class ListRssSourcesUseCaseTests
     {
         IReadOnlyList<RssSource> sources =
         [
-            new RssSource("Alpha", "https://example.com/alpha", "FR"),
-            new RssSource("Zeta", "https://example.com/zeta", "GB")
+            new("Alpha", "https://example.com/alpha", "FR"),
+            new("Zeta", "https://example.com/zeta", "GB")
         ];
 
         var repository = new StubRssSourceRepository(sources);
@@ -42,35 +42,33 @@ public class ListRssSourcesUseCaseTests
     {
         public CancellationToken ReceivedToken { get; private set; }
 
-        public Task<IReadOnlyList<RssSource>> GetAllAsync(
-            CancellationToken cancellationToken)
+        public Task<IReadOnlyList<RssSource>> GetAllAsync(CancellationToken cancellationToken)
         {
             ReceivedToken = cancellationToken;
             return Task.FromResult(sources);
         }
 
-        public Task<RssSource?> GetByIdAsync(
-            Guid id,
-            CancellationToken cancellationToken)
+        public Task<RssSource?> GetByIdAsync(Guid id, CancellationToken cancellationToken)
         {
             throw new NotSupportedException();
         }
 
-        public Task<bool> ExistsByFeedUrlAsync(
-            string feedUrl,
-            CancellationToken cancellationToken)
+        public Task<bool> ExistsByFeedUrlAsync(string feedUrl, CancellationToken cancellationToken)
         {
             throw new NotSupportedException();
         }
 
-        public Task AddAsync(
-            RssSource source,
-            CancellationToken cancellationToken)
+        public Task AddAsync(RssSource source, CancellationToken cancellationToken)
         {
             throw new NotSupportedException();
         }
-        
+
         public Task SaveChangesAsync(CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task DeleteAsync(RssSource source, CancellationToken cancellationToken)
         {
             throw new NotSupportedException();
         }

@@ -35,6 +35,6 @@ public class ArticleConfiguration: IEntityTypeConfiguration<Article>
         builder.HasOne<RssSource>()
             .WithMany()
             .HasForeignKey(article => article.RssSourceId)
-            .OnDelete(DeleteBehavior.Restrict);
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

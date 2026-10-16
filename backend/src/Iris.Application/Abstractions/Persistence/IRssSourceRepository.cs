@@ -20,4 +20,6 @@ public interface IRssSourceRepository
         CancellationToken cancellationToken);
     
     Task SaveChangesAsync(CancellationToken cancellationToken);
+    
+    Task DeleteAsync(RssSource source, CancellationToken cancellationToken);
 }
