@@ -25,7 +25,9 @@ public sealed class ArticlesController(
             Title = article.Title,
             ArticleUrl = article.ArticleUrl,
             PublishedAt = article.PublishedAt,
-            CollectedAt = article.CollectedAt
+            CollectedAt = article.CollectedAt,
+            SourceName = article.SourceName,
+            SourceLogoUrl = article.SourceLogoUrl,
         }).ToList();
 
         return Ok(response);

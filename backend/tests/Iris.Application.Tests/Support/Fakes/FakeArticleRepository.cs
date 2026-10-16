@@ -1,4 +1,5 @@
 using Iris.Application.Abstractions.Persistence;
+using Iris.Application.UseCases.Articles;
 using Iris.Domain.Entities;
 
 namespace Iris.Application.Tests.Support.Fakes;
@@ -30,17 +31,11 @@ public sealed class FakeArticleRepository(
         return Task.CompletedTask;
     }
 
-    public Task<IReadOnlyList<Article>> GetLatestAsync(
+    public Task<IReadOnlyList<ArticleListItem>> GetLatestAsync(
         int limit,
         CancellationToken cancellationToken)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-
-        return Task.FromResult<IReadOnlyList<Article>>(
-            _articles
-                .OrderByDescending(article => article.CollectedAt)
-                .ThenByDescending(article => article.Id)
-                .Take(limit)
-                .ToList());
+        throw new NotSupportedException(
+            "Ce faux dépôt sert aux tests de collecte, pas à la lecture des articles.");
     }
 }

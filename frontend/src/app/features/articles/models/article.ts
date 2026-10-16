@@ -5,4 +5,6 @@ export interface Article {
   articleUrl: string;
   publishedAt: string | null;
   collectedAt: string;
+  sourceName: string;
+  sourceLogoUrl: string | null;
 }

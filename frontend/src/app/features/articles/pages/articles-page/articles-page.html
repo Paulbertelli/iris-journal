@@ -5,21 +5,69 @@
 } @else if (error()) {
   <p role="alert">{{ error() }}</p>
 } @else {
-  <ul>
+  <ul class="articles-list">
     @for (article of articles(); track article.id) {
-      <li>
-        <a [href]="article.articleUrl" target="_blank" rel="noopener noreferrer">
-          {{ article.title }}
-        </a>
+      <li class="article-card">
+        <div class="article-logo">
+          @if (
+            article.sourceLogoUrl &&
+            !failedLogoUrls().has(article.sourceLogoUrl)
+          ) {
+            <img
+              [src]="article.sourceLogoUrl"
+              alt=""
+              loading="lazy"
+              referrerpolicy="no-referrer"
+              (error)="markLogoFailed(article.sourceLogoUrl)"
+            />
+          } @else {
+            <img src="/images/rss-default.png" alt="" />
+          }
+        </div>
 
-        @if (article.publishedAt) {
-          <p>Publié le {{ article.publishedAt | date: 'dd/MM/yyyy HH:mm' }}</p>
-        } @else {
-          <p>Date de publication inconnue</p>
-        }
+        <div class="article-content">
+          <div class="article-meta">
+            <span class="article-source-name">
+              {{ article.sourceName }}
+            </span>
+
+            @if (article.publishedAt) {
+              <span class="article-meta-separator" aria-hidden="true">·</span>
+
+              <time
+                class="article-relative-date"
+                [attr.datetime]="article.publishedAt"
+              >
+                {{ relativePublishedAt(article.publishedAt) }}
+              </time>
+            }
+          </div>
+
+          <h2 class="article-title">
+            <a
+              [href]="article.articleUrl"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {{ article.title }}
+            </a>
+          </h2>
+        </div>
+
+        <footer class="article-footer">
+          @if (article.publishedAt) {
+            <time [attr.datetime]="article.publishedAt">
+              Publié le {{ article.publishedAt | date: "dd/MM/yyyy 'à' HH:mm" }}
+            </time>
+          } @else {
+            <span>Date de publication inconnue</span>
+          }
+        </footer>
       </li>
     } @empty {
-      <li>Aucun article collecté. Lance une collecte depuis les sources.</li>
+      <li class="article-card article-empty">
+        Aucun article collecté. Lance une collecte depuis les sources.
+      </li>
     }
   </ul>
 }

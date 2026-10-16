@@ -1,3 +1,4 @@
+using Iris.Application.UseCases.Articles;
 using Iris.Domain.Entities;
 
 namespace Iris.Application.Abstractions.Persistence;
@@ -12,7 +13,7 @@ public interface IArticleRepository
         Article article,
         CancellationToken cancellationToken);
     
-    Task<IReadOnlyList<Article>> GetLatestAsync(
+    Task<IReadOnlyList<ArticleListItem>> GetLatestAsync(
         int limit,
         CancellationToken cancellationToken);
 }

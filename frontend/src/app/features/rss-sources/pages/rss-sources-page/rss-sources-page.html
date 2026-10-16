@@ -106,7 +106,7 @@
           <button
             type="button"
             class="icon-button"
-            [disabled]="collectingId() !== null || deletingId() !== null"
+            [disabled]="!source.isEnabled || collectingId() !== null || deletingId() !== null"
             (click)="collect(source.id)"
             [attr.aria-label]="'Collecter les articles de ' + source.name"
             title="Collecter"

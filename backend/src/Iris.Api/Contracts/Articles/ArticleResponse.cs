@@ -8,4 +8,6 @@ public sealed class ArticleResponse
     public string ArticleUrl { get; init; } = string.Empty;
     public DateTimeOffset? PublishedAt { get; init; }
     public DateTimeOffset CollectedAt { get; init; }
+    public string SourceName { get; init; } = string.Empty;
+    public string? SourceLogoUrl { get; init; }
 }

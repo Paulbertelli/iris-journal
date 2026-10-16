@@ -33,13 +33,13 @@ body::before {
     linear-gradient(
       145deg,
       transparent 28%,
-      rgba(240, 239, 205, 0.65) 29%,
-      rgba(117, 210, 228, 0.5) 34%,
+      rgba(240, 236, 205, 0.65) 29%,
+      rgba(117, 228, 209, 0.5) 34%,
       transparent 43%
     ),
     radial-gradient(
       ellipse at 5% 20%,
-      #f0dfab 0%,
+      #0760da 0%,
       rgba(240, 223, 171, 0) 48%
     ),
     radial-gradient(
@@ -101,7 +101,7 @@ a {
 }
 
 :focus-visible {
-  outline: 3px solid #ffdf85;
+  outline: 3px solid #fefefd;
   outline-offset: 4px;
 }
 
@@ -127,15 +127,15 @@ ul {
 }
 
 [role='alert'] {
-  border-color: #ffc6bb;
-  background: #fff0eb;
-  color: #80281c;
+  border-color: #ff2a0081;
+  background: #fd000057;
+  color: #ffffff;
 }
 
 [role='status'] {
-  border-color: rgba(255, 255, 255, 0.65);
-  background: rgba(240, 248, 255, 0.95);
-  color: #203e70;
+  border-color: rgba(186, 216, 251, 0.65);
+  background: rgba(171, 210, 243, 0.404);
+  color: #ffffff;
 }
 
 @supports not (

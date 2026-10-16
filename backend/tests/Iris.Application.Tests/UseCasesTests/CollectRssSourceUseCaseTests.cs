@@ -8,7 +8,7 @@ namespace Iris.Application.Tests.UseCasesTests;
 public class CollectRssSourceUseCaseTests
 {
     [Fact]
-    public async Task ExecuteAsync_WhenSourceIsUnknown_ReturnsNullWithoutReadingFeed()
+    public async Task ExecuteAsync_WhenSourceIsUnknown_ReturnsNotFoundWithoutReadingFeed()
     {
         var sources = new FakeRssSourceRepository();
         var reader = new FakeRssFeedReader();
@@ -17,7 +17,28 @@ public class CollectRssSourceUseCaseTests
 
         var result = await useCase.ExecuteAsync(Guid.NewGuid());
 
-        Assert.Null(result);
+        Assert.Equal(CollectRssSourceStatus.NotFound, result.Status);
+        Assert.Equal(0, reader.CallCount);
+        Assert.Empty(articles.Articles);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenSourceIsDisabled_DoesNotReadFeed()
+    {
+        var source = new RssSource(
+            "Source désactivée",
+            "https://example.com/feed",
+            "FR",
+            isEnabled: false);
+
+        var sources = new FakeRssSourceRepository(source);
+        var reader = new FakeRssFeedReader();
+        var articles = new FakeArticleRepository();
+        var useCase = new CollectRssSourceUseCase(sources, reader, articles);
+
+        var result = await useCase.ExecuteAsync(source.Id);
+
+        Assert.Equal(CollectRssSourceStatus.Disabled, result.Status);
         Assert.Equal(0, reader.CallCount);
         Assert.Empty(articles.Articles);
     }
@@ -33,7 +54,8 @@ public class CollectRssSourceUseCaseTests
 
         var result = await useCase.ExecuteAsync(source.Id);
 
-        Assert.Equal((int?)0, result);
+        Assert.Equal(CollectRssSourceStatus.Collected, result.Status);
+        Assert.Equal(0, result.AddedCount);
         Assert.Equal(1, reader.CallCount);
         Assert.Equal(source.FeedUrl, reader.LastFeedUrl);
         Assert.Empty(articles.Articles);
@@ -66,7 +88,8 @@ public class CollectRssSourceUseCaseTests
 
         var result = await useCase.ExecuteAsync(source.Id);
 
-        Assert.Equal((int?)2, result);
+        Assert.Equal(CollectRssSourceStatus.Collected, result.Status);
+        Assert.Equal(2, result.AddedCount);
         Assert.Equal(1, reader.CallCount);
         Assert.Equal(source.FeedUrl, reader.LastFeedUrl);
 
@@ -121,7 +144,8 @@ public class CollectRssSourceUseCaseTests
 
         var result = await useCase.ExecuteAsync(source.Id);
 
-        Assert.Equal((int?)1, result);
+        Assert.Equal(CollectRssSourceStatus.Collected, result.Status);
+        Assert.Equal(1, result.AddedCount);
         Assert.Equal(2, articles.Articles.Count);
 
         var retained = Assert.Single(
@@ -160,9 +184,11 @@ public class CollectRssSourceUseCaseTests
 
         var result = await useCase.ExecuteAsync(source.Id);
 
-        Assert.Equal((int?)1, result);
+        Assert.Equal(CollectRssSourceStatus.Collected, result.Status);
+        Assert.Equal(1, result.AddedCount);
 
         var saved = Assert.Single(articles.Articles);
+
         Assert.Equal("Premier titre", saved.Title);
         Assert.Equal("https://example.com/article", saved.ArticleUrl);
         Assert.Equal(source.Id, saved.RssSourceId);

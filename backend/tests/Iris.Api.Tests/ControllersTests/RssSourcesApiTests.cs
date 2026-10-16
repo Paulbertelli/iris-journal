@@ -750,4 +750,47 @@ public class RssSourcesApiTests
         Assert.Equal(keptArticle.Id, remainingArticle.Id);
         Assert.Equal(sourceToKeep.Id, remainingArticle.RssSourceId);
     }
+    
+    [Fact]
+    public async Task Collect_WhenSourceIsDisabled_ReturnsConflictWithoutReadingFeed()
+    {
+        await using var factory = new IrisApiFactory();
+        factory.CreateDatabase();
+
+        var source = new RssSource(
+            "Source désactivée",
+            "https://example.com/feed",
+            "FR",
+            isEnabled: false);
+
+        using (var scope = factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider
+                .GetRequiredService<IrisDbContext>();
+
+            dbContext.RssSources.Add(source);
+            await dbContext.SaveChangesAsync();
+        }
+
+        using var client = factory.CreateClient();
+
+        using var response = await client.PostAsync(
+            $"/api/rss-sources/{source.Id}/collect",
+            content: null);
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+
+        var problem = await response.Content
+            .ReadFromJsonAsync<Microsoft.AspNetCore.Mvc.ProblemDetails>();
+
+        Assert.NotNull(problem);
+        Assert.Equal("Source RSS désactivée", problem.Title);
+        Assert.Equal(0, factory.FeedReadCount);
+
+        using var verificationScope = factory.Services.CreateScope();
+        var verificationContext = verificationScope.ServiceProvider
+            .GetRequiredService<IrisDbContext>();
+
+        Assert.Empty(await verificationContext.Articles.ToListAsync());
+    }
 }

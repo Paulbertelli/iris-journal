@@ -15,6 +15,7 @@ export class ArticlesPage implements OnInit {
   readonly articles = signal<Article[]>([]);
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
+  readonly failedLogoUrls = signal<ReadonlySet<string>>(new Set());
 
   ngOnInit(): void {
     this.api.getLatest().subscribe({
@@ -27,5 +28,35 @@ export class ArticlesPage implements OnInit {
         this.loading.set(false);
       },
     });
+  }
+
+  markLogoFailed(url: string): void {
+    this.failedLogoUrls.update((urls) => new Set([...urls, url]));
+  }
+
+  relativePublishedAt(value: string | null): string {
+    if (!value) return 'Date inconnue';
+
+    const timestamp = Date.parse(value);
+    if (Number.isNaN(timestamp)) return 'Date inconnue';
+
+    const seconds = (timestamp - Date.now()) / 1000;
+    const absoluteSeconds = Math.abs(seconds);
+
+    const units: [Intl.RelativeTimeFormatUnit, number][] = [
+      ['year', 365.25 * 24 * 3600],
+      ['month', 30.44 * 24 * 3600],
+      ['day', 24 * 3600],
+      ['hour', 3600],
+      ['minute', 60],
+      ['second', 1],
+    ];
+
+    const [unit, duration] =
+      units.find(([, duration]) => absoluteSeconds >= duration) ?? units[units.length - 1];
+
+    return new Intl.RelativeTimeFormat('fr', {
+      numeric: 'always',
+    }).format(Math.trunc(seconds / duration) || 0, unit);
   }
 }

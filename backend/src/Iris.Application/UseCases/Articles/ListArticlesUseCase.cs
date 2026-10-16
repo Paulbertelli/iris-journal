@@ -6,7 +6,7 @@ namespace Iris.Application.UseCases.Articles;
 public sealed class ListArticlesUseCase(
     IArticleRepository articleRepository)
 {
-    public Task<IReadOnlyList<Article>> ExecuteAsync(int limit = 50, CancellationToken cancellationToken = default)
+    public Task<IReadOnlyList<ArticleListItem>> ExecuteAsync(int limit = 50, CancellationToken cancellationToken = default)
     {
         if (limit is < 1 or > 100)
         {
