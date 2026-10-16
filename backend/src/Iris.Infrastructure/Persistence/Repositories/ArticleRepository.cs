@@ -1,4 +1,5 @@
 using Iris.Application.Abstractions.Persistence;
+using Iris.Application.UseCases.Articles;
 using Iris.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
@@ -17,13 +18,27 @@ public sealed class ArticleRepository(IrisDbContext dbContext) : IArticleReposit
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task<IReadOnlyList<Article>> GetLatestAsync(int limit, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<ArticleListItem>> GetLatestAsync(
+        int limit,
+        CancellationToken cancellationToken)
     {
-        return await dbContext.Articles
-            .AsNoTracking()
-            .OrderByDescending(article => article.CollectedAt)
-            .ThenByDescending(article => article.Id )
-            .Take(limit)
-            .ToListAsync(cancellationToken);
+        var query =
+            from article in dbContext.Articles.AsNoTracking()
+            join source in dbContext.RssSources.AsNoTracking()
+                on article.RssSourceId equals source.Id
+            orderby article.CollectedAt descending, article.Id descending
+            select new ArticleListItem
+            {
+                Id = article.Id,
+                RssSourceId = source.Id,
+                SourceName = source.Name,
+                SourceLogoUrl = source.LogoUrl,
+                Title = article.Title,
+                ArticleUrl = article.ArticleUrl,
+                PublishedAt = article.PublishedAt,
+                CollectedAt = article.CollectedAt
+            };
+
+        return await query.Take(limit).ToListAsync(cancellationToken);
     }
 }

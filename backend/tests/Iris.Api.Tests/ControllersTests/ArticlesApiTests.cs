@@ -51,7 +51,10 @@ public class ArticlesApiTests
         factory.CreateDatabase();
 
         var source = new RssSource(
-            "Source test", "https://example.com/feed", "FR");
+            "Source test",
+            "https://example.com/feed",
+            "FR",
+            logoUrl: "https://example.com/logo.png");
 
         var publishedAt = new DateTimeOffset(
             2026, 10, 15, 8, 0, 0, TimeSpan.Zero);
@@ -112,5 +115,12 @@ public class ArticlesApiTests
         Assert.Equal(collectedAt.AddMinutes(2), first.CollectedAt);
 
         Assert.Null(body[1].PublishedAt);
+        
+        Assert.All(body, article =>
+        {
+            Assert.Equal(source.Id, article.RssSourceId);
+            Assert.Equal("Source test", article.SourceName);
+            Assert.Equal("https://example.com/logo.png", article.SourceLogoUrl);
+        });
     }
 }

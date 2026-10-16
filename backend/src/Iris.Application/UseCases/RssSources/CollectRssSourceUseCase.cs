@@ -4,37 +4,45 @@ using Iris.Domain.Entities;
 
 namespace Iris.Application.UseCases.RssSources;
 
-public class CollectRssSourceUseCase(
-    IRssSourceRepository rssSourceRepository, 
-    IRssFeedReader feedReader, 
+public sealed class CollectRssSourceUseCase(
+    IRssSourceRepository rssSourceRepository,
+    IRssFeedReader feedReader,
     IArticleRepository articleRepository)
 {
-    public async Task<int?> ExecuteAsync(Guid rssSourceId, CancellationToken cancellationToken = default)
+    public async Task<CollectRssSourceResult> ExecuteAsync(
+        Guid rssSourceId,
+        CancellationToken cancellationToken = default)
     {
-        var rssSource = await rssSourceRepository.GetByIdAsync(rssSourceId, cancellationToken);
-        
-        if (rssSource is null)
-            return null;
-        
-        var items = await feedReader.ReadAsync(rssSource.FeedUrl, cancellationToken);
-            
+        var source = await rssSourceRepository.GetByIdAsync(
+            rssSourceId, cancellationToken);
+
+        if (source is null)
+            return new(CollectRssSourceStatus.NotFound);
+
+        if (!source.IsEnabled)
+            return new(CollectRssSourceStatus.Disabled);
+
+        var items = await feedReader.ReadAsync(
+            source.FeedUrl, cancellationToken);
+
         var counter = 0;
-        
+
         foreach (var item in items)
         {
             var article = new Article(
-                rssSource.Id, 
-                item.Title, 
-                item.ArticleUrl, 
+                source.Id,
+                item.Title,
+                item.ArticleUrl,
                 item.PublishedAt);
-                
-                if (await articleRepository.ExistsByArticleUrlAsync(article.ArticleUrl, cancellationToken)) 
-                    continue;
-                
-                await articleRepository.AddAsync(article, cancellationToken);
-                counter++;
+
+            if (await articleRepository.ExistsByArticleUrlAsync(
+                    article.ArticleUrl, cancellationToken))
+                continue;
+
+            await articleRepository.AddAsync(article, cancellationToken);
+            counter++;
         }
 
-        return counter;
+        return new(CollectRssSourceStatus.Collected, counter);
     }
 }

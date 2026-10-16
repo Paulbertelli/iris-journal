@@ -23,7 +23,7 @@ public class ListArticlesUseCaseTests
 
     private sealed class UnusedArticleRepository : IArticleRepository
     {
-        public Task<IReadOnlyList<Article>> GetLatestAsync(
+        public Task<IReadOnlyList<ArticleListItem>> GetLatestAsync(
             int limit,
             CancellationToken cancellationToken)
         {

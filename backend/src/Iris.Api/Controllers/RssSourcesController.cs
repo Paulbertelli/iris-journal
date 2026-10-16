@@ -77,12 +77,26 @@ public sealed class RssSourcesController(
     {
         try
         {
-            var result = await collectRssSourceUseCase.ExecuteAsync(id, cancellationToken);
+            var result = await collectRssSourceUseCase.ExecuteAsync(
+                id, cancellationToken);
 
-            if (result is null)
-                return NotFound();
+            return result.Status switch
+            {
+                CollectRssSourceStatus.Collected =>
+                    Ok(new { addedCount = result.AddedCount }),
 
-            return Ok(new { addedCount = result.Value });
+                CollectRssSourceStatus.NotFound =>
+                    NotFound(),
+
+                CollectRssSourceStatus.Disabled =>
+                    Problem(
+                        statusCode: StatusCodes.Status409Conflict,
+                        title: "Source RSS désactivée",
+                        detail: "Réactive cette source avant de lancer une collecte."),
+
+                _ => throw new InvalidOperationException(
+                    "Résultat de collecte inconnu.")
+            };
         }
         catch (FeedReadException exception)
         {
