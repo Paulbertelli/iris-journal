@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using Iris.Api.Contracts.RssSources;
 using Iris.Api.Tests.Support;
 using Iris.Application.Abstractions.Feeds;
+using Iris.Domain.Entities;
 using Iris.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -214,7 +215,7 @@ public class RssSourcesApiTests
 
         using var response = await client.PostAsync(
             $"/api/rss-sources/{Guid.NewGuid()}/collect",
-            content: null);
+            null);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         Assert.Equal(0, factory.FeedReadCount);
@@ -269,7 +270,7 @@ public class RssSourcesApiTests
 
         using var response = await client.PostAsync(
             $"/api/rss-sources/{source.Id}/collect",
-            content: null);
+            null);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
@@ -344,7 +345,7 @@ public class RssSourcesApiTests
 
         using var firstResponse = await client.PostAsync(
             $"/api/rss-sources/{source.Id}/collect",
-            content: null);
+            null);
 
         Assert.Equal(HttpStatusCode.OK, firstResponse.StatusCode);
 
@@ -370,7 +371,7 @@ public class RssSourcesApiTests
 
         using var secondResponse = await client.PostAsync(
             $"/api/rss-sources/{source.Id}/collect",
-            content: null);
+            null);
 
         Assert.Equal(HttpStatusCode.OK, secondResponse.StatusCode);
 
@@ -410,7 +411,7 @@ public class RssSourcesApiTests
         factory.FeedReadFailure = new FeedReadException(
             "Échec de lecture du flux.",
             new Exception("Détail interne confidentiel"),
-            isTimeout: isTimeout);
+            isTimeout);
 
         factory.CreateDatabase();
 
@@ -434,7 +435,7 @@ public class RssSourcesApiTests
 
         using var response = await client.PostAsync(
             $"/api/rss-sources/{source.Id}/collect",
-            content: null);
+            null);
 
         Assert.Equal(expectedStatus, response.StatusCode);
         Assert.Equal(
@@ -491,7 +492,7 @@ public class RssSourcesApiTests
 
         using var response = await client.PostAsync(
             $"/api/rss-sources/{source.Id}/collect",
-            content: null);
+            null);
 
         Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
         Assert.Equal(
@@ -662,5 +663,91 @@ public class RssSourcesApiTests
             });
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Delete_WhenSourceIsUnknown_ReturnsNotFound()
+    {
+        await using var factory = new IrisApiFactory();
+        factory.CreateDatabase();
+
+        using var client = factory.CreateClient();
+
+        using var response = await client.DeleteAsync(
+            $"/api/rss-sources/{Guid.NewGuid()}");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Delete_RemovesSourceAndItsArticles_AndPreservesOtherSources()
+    {
+        await using var factory = new IrisApiFactory();
+        factory.CreateDatabase();
+
+        var sourceToDelete = new RssSource(
+            "À supprimer",
+            "https://example.com/delete",
+            "FR");
+
+        var sourceToKeep = new RssSource(
+            "À conserver",
+            "https://example.com/keep",
+            "GB");
+
+        var firstArticle = new Article(
+            sourceToDelete.Id,
+            "Premier article",
+            "https://example.com/first");
+
+        var secondArticle = new Article(
+            sourceToDelete.Id,
+            "Deuxième article",
+            "https://example.com/second");
+
+        var keptArticle = new Article(
+            sourceToKeep.Id,
+            "Article conservé",
+            "https://example.com/kept");
+
+        using (var scope = factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider
+                .GetRequiredService<IrisDbContext>();
+
+            dbContext.RssSources.AddRange(sourceToDelete, sourceToKeep);
+            await dbContext.SaveChangesAsync();
+
+            dbContext.Articles.AddRange(
+                firstArticle, secondArticle, keptArticle);
+
+            await dbContext.SaveChangesAsync();
+        }
+
+        using var client = factory.CreateClient();
+
+        using var response = await client.DeleteAsync(
+            $"/api/rss-sources/{sourceToDelete.Id}");
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+
+        using var verificationScope = factory.Services.CreateScope();
+        var verificationContext = verificationScope.ServiceProvider
+            .GetRequiredService<IrisDbContext>();
+
+        var remainingSources = await verificationContext.RssSources
+            .AsNoTracking()
+            .ToListAsync();
+
+        var remainingSource = Assert.Single(remainingSources);
+        Assert.Equal(sourceToKeep.Id, remainingSource.Id);
+
+        var remainingArticles = await verificationContext.Articles
+            .AsNoTracking()
+            .ToListAsync();
+
+        var remainingArticle = Assert.Single(remainingArticles);
+        Assert.Equal(keptArticle.Id, remainingArticle.Id);
+        Assert.Equal(sourceToKeep.Id, remainingArticle.RssSourceId);
     }
 }

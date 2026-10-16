@@ -6,17 +6,13 @@ namespace Iris.Infrastructure.Persistence.Repositories;
 
 public sealed class RssSourceRepository(IrisDbContext dbContext) : IRssSourceRepository
 {
-    public Task<bool> ExistsByFeedUrlAsync(
-        string feedUrl,
-        CancellationToken cancellationToken)
+    public Task<bool> ExistsByFeedUrlAsync(string feedUrl, CancellationToken cancellationToken)
     {
         return dbContext.RssSources
             .AnyAsync(source => source.FeedUrl == feedUrl, cancellationToken);
     }
 
-    public async Task AddAsync(
-        RssSource source,
-        CancellationToken cancellationToken)
+    public async Task AddAsync(RssSource source, CancellationToken cancellationToken)
     {
         dbContext.RssSources.Add(source);
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -31,9 +27,15 @@ public sealed class RssSourceRepository(IrisDbContext dbContext) : IRssSourceRep
     {
         return await dbContext.RssSources.SingleOrDefaultAsync(source => source.Id == id, cancellationToken);
     }
-    
+
     public Task SaveChangesAsync(CancellationToken cancellationToken)
     {
         return dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task DeleteAsync(RssSource source, CancellationToken cancellationToken)
+    {
+        dbContext.RssSources.Remove(source);
+        await dbContext.SaveChangesAsync(cancellationToken);
     }
 }

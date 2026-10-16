@@ -11,7 +11,8 @@ public sealed class RssSourcesController(
     ListRssSourcesUseCase listRssSourcesUseCase,
     AddRssSourceUseCase addRssSourceUseCase,
     CollectRssSourceUseCase collectRssSourceUseCase,
-    UpdateRssSourceUseCase updateRssSourceUseCase
+    UpdateRssSourceUseCase updateRssSourceUseCase,
+    DeleteRssSourceUseCase deleteRssSourceUseCase
 ) : ControllerBase
 {
     [HttpGet]
@@ -133,5 +134,19 @@ public sealed class RssSourcesController(
                 Status = StatusCodes.Status400BadRequest
             });
         }
+    }
+    
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> Delete(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        var deleted = await deleteRssSourceUseCase.ExecuteAsync(
+            id, cancellationToken);
+
+        if (!deleted)
+            return NotFound();
+
+        return NoContent();
     }
 }

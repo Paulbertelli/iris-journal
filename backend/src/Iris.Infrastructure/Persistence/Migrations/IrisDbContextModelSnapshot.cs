@@ -89,7 +89,7 @@ namespace Iris.Infrastructure.Persistence.Migrations
                     b.HasOne("Iris.Domain.Entities.RssSource", null)
                         .WithMany()
                         .HasForeignKey("RssSourceId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 #pragma warning restore 612, 618
