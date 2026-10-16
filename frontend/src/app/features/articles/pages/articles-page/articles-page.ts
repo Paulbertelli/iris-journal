@@ -16,6 +16,7 @@ export class ArticlesPage implements OnInit {
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
   readonly failedLogoUrls = signal<ReadonlySet<string>>(new Set());
+  readonly failedImageUrls = signal<ReadonlySet<string>>(new Set());
 
   ngOnInit(): void {
     this.api.getLatest().subscribe({
@@ -32,6 +33,10 @@ export class ArticlesPage implements OnInit {
 
   markLogoFailed(url: string): void {
     this.failedLogoUrls.update((urls) => new Set([...urls, url]));
+  }
+
+  markImageFailed(url: string): void {
+    this.failedImageUrls.update((urls) => new Set([...urls, url]));
   }
 
   relativePublishedAt(value: string | null): string {

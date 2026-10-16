@@ -44,7 +44,8 @@ public sealed class RssFeedReader(HttpClient httpClient) : IRssFeedReader
                 {
                     Title = title,
                     ArticleUrl = uri.AbsoluteUri,
-                    PublishedAt = publishedAt
+                    PublishedAt = publishedAt,
+                    ImageUrl = ExtractImageUrl(item)
                 });
             }
 
@@ -62,5 +63,64 @@ public sealed class RssFeedReader(HttpClient httpClient) : IRssFeedReader
         {
             throw new FeedReadException("Le délai de lecture du flux est dépassé.", exception, true);
         }
+    }
+
+    private static string? ExtractImageUrl(XElement item)
+    {
+        XNamespace media = "http://search.yahoo.com/mrss/";
+
+        var candidates = item.Descendants(media + "content")
+            .Where(element =>
+            {
+                var medium = (string?)element.Attribute("medium");
+                var type = (string?)element.Attribute("type");
+
+                if (string.Equals(medium, "image", StringComparison.OrdinalIgnoreCase)
+                    || IsImageType(type))
+                    return true;
+
+                // Déduire le format de l’URL seulement sans métadonnées explicites.
+                return string.IsNullOrWhiteSpace(medium)
+                       && string.IsNullOrWhiteSpace(type)
+                       && HasImageExtension((string?)element.Attribute("url"));
+            })
+            .Select(element => (string?)element.Attribute("url"))
+            .Concat(
+                item.Elements("enclosure")
+                    .Where(element =>
+                        IsImageType((string?)element.Attribute("type")))
+                    .Select(element => (string?)element.Attribute("url")))
+            .Concat(
+                item.Descendants(media + "thumbnail")
+                    .Select(element => (string?)element.Attribute("url")));
+
+        foreach (var candidate in candidates)
+        {
+            if (Uri.TryCreate(candidate?.Trim(), UriKind.Absolute, out var uri) &&
+                (uri.Scheme == Uri.UriSchemeHttp ||
+                 uri.Scheme == Uri.UriSchemeHttps))
+            {
+                return uri.AbsoluteUri;
+            }
+        }
+
+        return null;
+    }
+
+    private static bool IsImageType(string? contentType)
+    {
+        return contentType?.Trim().StartsWith(
+            "image/",
+            StringComparison.OrdinalIgnoreCase) == true;
+    }
+
+    private static bool HasImageExtension(string? value)
+    {
+        if (!Uri.TryCreate(value?.Trim(), UriKind.Absolute, out var uri))
+            return false;
+
+        return Path.GetExtension(uri.AbsolutePath).ToLowerInvariant()
+            is ".jpg" or ".jpeg" or ".png" or ".webp"
+            or ".gif" or ".avif";
     }
 }

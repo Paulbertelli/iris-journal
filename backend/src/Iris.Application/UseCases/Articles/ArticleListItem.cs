@@ -10,4 +10,6 @@ public sealed class ArticleListItem
     public string ArticleUrl { get; init; } = string.Empty;
     public DateTimeOffset? PublishedAt { get; init; }
     public DateTimeOffset CollectedAt { get; init; }
+    
+    public string? ImageUrl { get; init; }
 }

@@ -33,7 +33,8 @@ public sealed class CollectRssSourceUseCase(
                 source.Id,
                 item.Title,
                 item.ArticleUrl,
-                item.PublishedAt);
+                item.PublishedAt,
+                item.ImageUrl);
 
             if (await articleRepository.ExistsByArticleUrlAsync(
                     article.ArticleUrl, cancellationToken))

@@ -6,10 +6,11 @@ public sealed class Article
     public Guid RssSourceId { get; private set; }
     public string Title { get; private set; }
     public string ArticleUrl { get; private set; }
+    public string? ImageUrl { get; private set; }
     public DateTimeOffset? PublishedAt { get; private set; }
     public DateTimeOffset CollectedAt { get; private set; } = DateTimeOffset.UtcNow;
 
-    public Article( Guid rssSourceId, string title, string articleUrl, DateTimeOffset? publishedAt = null)
+    public Article( Guid rssSourceId, string title, string articleUrl, DateTimeOffset? publishedAt = null, string? imageUrl = null)
     {
         if (rssSourceId == Guid.Empty)
             throw new ArgumentException("La source RSS est obligatoire.", nameof(rssSourceId));
@@ -21,9 +22,26 @@ public sealed class Article
             (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
             throw new ArgumentException("L’URL doit être une adresse HTTP ou HTTPS absolue.", nameof(articleUrl));
         
+        string? normalizedImageUrl = null;
+
+        if (!string.IsNullOrWhiteSpace(imageUrl))
+        {
+            if (!Uri.TryCreate(imageUrl.Trim(), UriKind.Absolute, out var imageUri) ||
+                (imageUri.Scheme != Uri.UriSchemeHttp &&
+                 imageUri.Scheme != Uri.UriSchemeHttps))
+            {
+                throw new ArgumentException(
+                    "L’image doit avoir une URL HTTP ou HTTPS absolue.",
+                    nameof(imageUrl));
+            }
+
+            normalizedImageUrl = imageUri.AbsoluteUri;
+        }
+        
         Title = title.Trim();
         ArticleUrl = uri.AbsoluteUri;
         PublishedAt = publishedAt?.ToUniversalTime();
+        ImageUrl = normalizedImageUrl;
         RssSourceId = rssSourceId;
     }
 }

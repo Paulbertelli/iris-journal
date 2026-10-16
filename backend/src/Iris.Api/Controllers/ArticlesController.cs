@@ -28,6 +28,7 @@ public sealed class ArticlesController(
             CollectedAt = article.CollectedAt,
             SourceName = article.SourceName,
             SourceLogoUrl = article.SourceLogoUrl,
+            ImageUrl = article.ImageUrl
         }).ToList();
 
         return Ok(response);
