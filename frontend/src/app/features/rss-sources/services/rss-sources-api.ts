@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 import { RssSource } from '../models/rss-source';
 import { CreateRssSourceRequest } from '../models/create-rss-source-request';
 import { UpdateRssSourceRequest } from '../models/update-rss-source-request';
+import { CollectAllRssSourcesResponse } from '../models/collect-all-rss-sources-response';
 
 @Injectable({ providedIn: 'root' })
 export class RssSourcesApi {
@@ -27,5 +28,9 @@ export class RssSourcesApi {
 
   delete(id: string): Observable<void> {
     return this.http.delete<void>(`/api/rss-sources/${id}`);
+  }
+
+  collectAll(): Observable<CollectAllRssSourcesResponse> {
+    return this.http.post<CollectAllRssSourcesResponse>('/api/rss-sources/collect', null);
   }
 }
