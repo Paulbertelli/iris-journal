@@ -13,10 +13,11 @@ public sealed class ArticlesController(
     [HttpGet]
     public async Task<IActionResult> GetLatest(
         CancellationToken cancellationToken,
-        [FromQuery, Range(1, 100)] int limit = 50)
+        [FromQuery, Range(1, 100)] int limit = 50,
+        [FromQuery] Guid? sourceId = null)
     {
         var articles = await listArticlesUseCase.ExecuteAsync(
-            limit, cancellationToken);
+            limit, cancellationToken, sourceId);
 
         var response = articles.Select(article => new ArticleResponse
         {

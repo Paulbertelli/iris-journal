@@ -15,5 +15,6 @@ public interface IArticleRepository
     
     Task<IReadOnlyList<ArticleListItem>> GetLatestAsync(
         int limit,
-        CancellationToken cancellationToken);
+        CancellationToken cancellationToken,
+        Guid? sourceId = null);
 }

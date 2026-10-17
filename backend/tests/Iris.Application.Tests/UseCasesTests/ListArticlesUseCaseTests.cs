@@ -25,7 +25,8 @@ public class ListArticlesUseCaseTests
     {
         public Task<IReadOnlyList<ArticleListItem>> GetLatestAsync(
             int limit,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            Guid? sourceId = null)
         {
             throw new InvalidOperationException("Le dépôt ne doit pas être appelé.");
         }

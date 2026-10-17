@@ -1,5 +1,50 @@
 <h1>Derniers articles collectés</h1>
 
+<div class="source-filters" role="group" aria-label="Filtrer par source">
+  <button
+    type="button"
+    class="source-filter"
+    [class.is-selected]="selectedSourceId() === null"
+    [attr.aria-pressed]="selectedSourceId() === null"
+    (click)="changeSource('')"
+  >
+    <span class="filter-logo filter-all" aria-hidden="true">Tout</span>
+    <span class="filter-name">Toutes les sources</span>
+  </button>
+
+  @for (source of sources(); track source.id) {
+    <button
+      type="button"
+      class="source-filter"
+      [class.is-selected]="selectedSourceId() === source.id"
+      [attr.aria-pressed]="selectedSourceId() === source.id"
+      [attr.aria-label]="'Filtrer : ' + source.name"
+      [title]="source.name"
+      (click)="changeSource(source.id)"
+    >
+      <span class="filter-logo">
+        @if (source.logoUrl && !failedLogoUrls().has(source.logoUrl)) {
+          <img
+            [src]="source.logoUrl"
+            alt=""
+            loading="lazy"
+            referrerpolicy="no-referrer"
+            (error)="markLogoFailed(source.logoUrl)"
+          />
+        } @else {
+          <img src="/images/rss-default.png" alt="" />
+        }
+      </span>
+
+      <span class="filter-name">{{ source.name }}</span>
+    </button>
+  }
+</div>
+
+@if (sourcesError()) {
+  <p role="alert">{{ sourcesError() }}</p>
+}
+
 @if (loading()) {
   <p role="status">Chargement des articles…</p>
 } @else if (error()) {
@@ -66,9 +111,7 @@
         </footer>
       </li>
     } @empty {
-      <li class="article-card article-empty">
-        Aucun article collecté. Lance une collecte depuis les sources.
-      </li>
+      <li class="article-card article-empty">Aucun article disponible pour cette sélection.</li>
     }
   </ul>
 }

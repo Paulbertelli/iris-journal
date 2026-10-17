@@ -7,9 +7,13 @@ import { Article } from '../models/article';
 export class ArticlesApi {
   private readonly http = inject(HttpClient);
 
-  getLatest(limit = 50): Observable<Article[]> {
-    return this.http.get<Article[]>('/api/articles', {
-      params: { limit },
-    });
+  getLatest(limit = 50, sourceId: string | null = null): Observable<Article[]> {
+    const params: Record<string, string | number> = { limit };
+
+    if (sourceId) {
+      params['sourceId'] = sourceId;
+    }
+    
+    return this.http.get<Article[]>('/api/articles', { params });
   }
 }

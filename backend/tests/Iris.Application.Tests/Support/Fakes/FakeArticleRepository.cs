@@ -33,7 +33,8 @@ public sealed class FakeArticleRepository(
 
     public Task<IReadOnlyList<ArticleListItem>> GetLatestAsync(
         int limit,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        Guid? sourceId = null)
     {
         throw new NotSupportedException(
             "Ce faux dépôt sert aux tests de collecte, pas à la lecture des articles.");
