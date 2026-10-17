@@ -5,6 +5,7 @@ using Iris.Api.Tests.Support;
 using Iris.Application.Abstractions.Feeds;
 using Iris.Domain.Entities;
 using Iris.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -750,7 +751,7 @@ public class RssSourcesApiTests
         Assert.Equal(keptArticle.Id, remainingArticle.Id);
         Assert.Equal(sourceToKeep.Id, remainingArticle.RssSourceId);
     }
-    
+
     [Fact]
     public async Task Collect_WhenSourceIsDisabled_ReturnsConflictWithoutReadingFeed()
     {
@@ -792,5 +793,115 @@ public class RssSourcesApiTests
             .GetRequiredService<IrisDbContext>();
 
         Assert.Empty(await verificationContext.Articles.ToListAsync());
+    }
+
+    [Fact]
+    public async Task CreateBatch_WithMixedItems_ReturnsIndividualResults()
+    {
+        await using var factory = new IrisApiFactory();
+        factory.CreateDatabase();
+
+        await using var developmentFactory = factory.WithWebHostBuilder(
+            builder => builder.UseEnvironment("Development"));
+
+        using var client = developmentFactory.CreateClient();
+
+        object?[] requests =
+        [
+            new
+            {
+                name = "Source test",
+                feedUrl = "https://example.com/feed",
+                countryCode = "FR"
+            },
+            new
+            {
+                name = "Doublon",
+                feedUrl = "https://example.com/feed",
+                countryCode = "FR"
+            },
+            new
+            {
+                name = "Source invalide",
+                feedUrl = "adresse-invalide",
+                countryCode = "FR"
+            },
+            null
+        ];
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/rss-sources/batch", requests);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var body = await response.Content
+            .ReadFromJsonAsync<BatchResponse>();
+
+        Assert.NotNull(body);
+
+        Assert.Equal(
+            new[] { "created", "alreadyExists", "invalid", "invalid" },
+            body.Results.Select(result => result.Status));
+
+        Assert.Equal(
+            new[] { 0, 1, 2, 3 },
+            body.Results.Select(result => result.Index));
+
+        var createdId = Assert.IsType<Guid>(body.Results[0].Id);
+        Assert.NotEqual(Guid.Empty, createdId);
+
+        Assert.All(
+            body.Results.Skip(2),
+            result => Assert.False(string.IsNullOrWhiteSpace(result.Error)));
+
+        using var scope = developmentFactory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider
+            .GetRequiredService<IrisDbContext>();
+
+        var source = Assert.Single(await dbContext.RssSources.ToListAsync());
+
+        Assert.Equal(createdId, source.Id);
+    }
+
+    [Fact]
+    public async Task CreateBatch_OutsideDevelopment_ReturnsNotFound()
+    {
+        await using var factory = new IrisApiFactory();
+        factory.CreateDatabase();
+
+        using var client = factory.CreateClient();
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/rss-sources/batch",
+            new[]
+            {
+                new
+                {
+                    name = "Source test",
+                    feedUrl = "https://example.com/feed",
+                    countryCode = "FR"
+                }
+            });
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider
+            .GetRequiredService<IrisDbContext>();
+
+        Assert.Empty(await dbContext.RssSources.ToListAsync());
+    }
+
+    public sealed class BatchResponse
+    {
+        public List<BatchItemResponse> Results { get; init; } = [];
+    }
+
+    public sealed class BatchItemResponse
+    {
+        public int Index { get; init; }
+        public string Status { get; init; } = string.Empty;
+        public Guid? Id { get; init; }
+        public string? Error { get; init; }
     }
 }
