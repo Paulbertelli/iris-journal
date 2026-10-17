@@ -20,13 +20,23 @@ public sealed class ArticleRepository(IrisDbContext dbContext) : IArticleReposit
 
     public async Task<IReadOnlyList<ArticleListItem>> GetLatestAsync(
         int limit,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        Guid? sourceId = null)
     {
+        var articles = dbContext.Articles.AsNoTracking();
+
+        if (sourceId.HasValue)
+        {
+            articles = articles.Where(
+                article => article.RssSourceId == sourceId.Value);
+        }
+        
         var query =
-            from article in dbContext.Articles.AsNoTracking()
+            from article in articles
             join source in dbContext.RssSources.AsNoTracking()
                 on article.RssSourceId equals source.Id
-            orderby article.CollectedAt descending, article.Id descending
+            orderby (article.PublishedAt ?? article.CollectedAt)  descending,
+                article.Id descending 
             select new ArticleListItem
             {
                 Id = article.Id,

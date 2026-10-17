@@ -1,7 +1,11 @@
 import { DatePipe } from '@angular/common';
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, DestroyRef, inject, OnInit, signal } from '@angular/core';
 import { Article } from '../../models/article';
 import { ArticlesApi } from '../../services/articles-api';
+import { RssSourcesApi } from '../../../rss-sources/services/rss-sources-api';
+import { BehaviorSubject, catchError, map, of, startWith, switchMap } from 'rxjs';
+import { RssSource } from '../../../rss-sources/models/rss-source';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 @Component({
   selector: 'app-articles-page',
@@ -18,17 +22,62 @@ export class ArticlesPage implements OnInit {
   readonly failedLogoUrls = signal<ReadonlySet<string>>(new Set());
   readonly failedImageUrls = signal<ReadonlySet<string>>(new Set());
 
+  private readonly sourcesApi = inject(RssSourcesApi);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly sourceFilter = new BehaviorSubject<string | null>(null);
+
+  readonly sources = signal<RssSource[]>([]);
+  readonly selectedSourceId = signal<string | null>(null);
+  readonly sourcesError = signal<string | null>(null);
+
   ngOnInit(): void {
-    this.api.getLatest().subscribe({
-      next: (articles) => {
-        this.articles.set(articles);
-        this.loading.set(false);
-      },
-      error: () => {
-        this.error.set('Impossible de charger les articles.');
-        this.loading.set(false);
-      },
-    });
+    this.sourcesApi
+      .getAll()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (sources) => this.sources.set(sources),
+        error: () => {
+          this.sourcesError.set('Impossible de charger le filtre des sources.');
+        },
+      });
+
+    this.sourceFilter
+      .pipe(
+        switchMap((sourceId) =>
+          this.api.getLatest(50, sourceId).pipe(
+            map((articles) => ({
+              articles,
+              loading: false,
+              error: null as string | null,
+            })),
+            catchError(() =>
+              of({
+                articles: [] as Article[],
+                loading: false,
+                error: 'Impossible de charger les articles.',
+              }),
+            ),
+            startWith({
+              articles: [] as Article[],
+              loading: true,
+              error: null as string | null,
+            }),
+          ),
+        ),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((state) => {
+        this.articles.set(state.articles);
+        this.loading.set(state.loading);
+        this.error.set(state.error);
+      });
+  }
+
+  changeSource(value: string): void {
+    const sourceId = value || null;
+
+    this.selectedSourceId.set(sourceId);
+    this.sourceFilter.next(sourceId);
   }
 
   markLogoFailed(url: string): void {

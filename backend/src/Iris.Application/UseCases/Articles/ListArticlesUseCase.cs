@@ -6,13 +6,16 @@ namespace Iris.Application.UseCases.Articles;
 public sealed class ListArticlesUseCase(
     IArticleRepository articleRepository)
 {
-    public Task<IReadOnlyList<ArticleListItem>> ExecuteAsync(int limit = 50, CancellationToken cancellationToken = default)
+    public Task<IReadOnlyList<ArticleListItem>> ExecuteAsync(
+        int limit = 50,
+        CancellationToken cancellationToken = default,
+        Guid? sourceId = null)
     {
         if (limit is < 1 or > 100)
         {
             throw new ArgumentOutOfRangeException(nameof(limit), limit, "La limite doit être comprise entre 1 et 100.");
         }
 
-        return articleRepository.GetLatestAsync(limit, cancellationToken);
+        return articleRepository.GetLatestAsync(limit, cancellationToken, sourceId);
     }
 }

@@ -57,7 +57,7 @@ public class ArticlesApiTests
             logoUrl: "https://example.com/logo.png");
 
         var publishedAt = new DateTimeOffset(
-            2026, 10, 15, 8, 0, 0, TimeSpan.Zero);
+            2026, 10, 15, 11, 0, 0, TimeSpan.Zero);
 
         var oldest = new Article(
             source.Id, "Ancien", "https://example.com/oldest");
@@ -89,7 +89,7 @@ public class ArticlesApiTests
 
             dbContext.Entry(newest)
                 .Property(article => article.CollectedAt)
-                .CurrentValue = collectedAt.AddMinutes(2);
+                .CurrentValue = collectedAt.AddMinutes(-1);
 
             await dbContext.SaveChangesAsync();
         }
@@ -112,15 +112,92 @@ public class ArticlesApiTests
         Assert.Equal("Récent", first.Title);
         Assert.Equal("https://example.com/newest", first.ArticleUrl);
         Assert.Equal(publishedAt, first.PublishedAt);
-        Assert.Equal(collectedAt.AddMinutes(2), first.CollectedAt);
+        Assert.Equal(collectedAt.AddMinutes(-1), first.CollectedAt);
 
         Assert.Null(body[1].PublishedAt);
-        
+
         Assert.All(body, article =>
         {
             Assert.Equal(source.Id, article.RssSourceId);
             Assert.Equal("Source test", article.SourceName);
             Assert.Equal("https://example.com/logo.png", article.SourceLogoUrl);
         });
+    }
+
+    [Fact]
+    public async Task GetLatest_WithSourceFilter_FiltersBeforeSortingAndLimiting()
+    {
+        await using var factory = new IrisApiFactory();
+        factory.CreateDatabase();
+
+        var selectedSource = new RssSource(
+            "Source sélectionnée",
+            "https://example.com/selected",
+            "FR");
+
+        var otherSource = new RssSource(
+            "Autre source",
+            "https://example.com/other",
+            "GB");
+
+        var date = new DateTimeOffset(
+            2026, 10, 17, 10, 0, 0, TimeSpan.Zero);
+
+        var oldest = new Article(
+            selectedSource.Id,
+            "Ancien",
+            "https://example.com/oldest",
+            publishedAt: date.AddHours(-2));
+
+        var newest = new Article(
+            selectedSource.Id,
+            "Récent",
+            "https://example.com/newest",
+            publishedAt: date);
+
+        var middle = new Article(
+            selectedSource.Id,
+            "Intermédiaire",
+            "https://example.com/middle",
+            publishedAt: date.AddHours(-1));
+
+        var otherArticle = new Article(
+            otherSource.Id,
+            "Article d’une autre source",
+            "https://example.com/other-article",
+            publishedAt: date.AddHours(1));
+
+        using (var scope = factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider
+                .GetRequiredService<IrisDbContext>();
+
+            dbContext.RssSources.AddRange(selectedSource, otherSource);
+            await dbContext.SaveChangesAsync();
+
+            dbContext.Articles.AddRange(
+                oldest, otherArticle, newest, middle);
+
+            await dbContext.SaveChangesAsync();
+        }
+
+        using var client = factory.CreateClient();
+
+        using var response = await client.GetAsync(
+            $"/api/articles?sourceId={selectedSource.Id}&limit=2");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var body = await response.Content
+            .ReadFromJsonAsync<List<ArticleResponse>>();
+
+        Assert.NotNull(body);
+
+        Assert.Equal(
+            new[] { newest.Id, middle.Id },
+            body.Select(article => article.Id));
+
+        Assert.All(body, article =>
+            Assert.Equal(selectedSource.Id, article.RssSourceId));
     }
 }
