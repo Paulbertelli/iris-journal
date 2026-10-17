@@ -25,6 +25,9 @@ export class RssSourcesPage implements OnInit {
   readonly deletingId = signal<string | null>(null);
   readonly deleteError = signal<string | null>(null);
   readonly failedLogoUrls = signal<ReadonlySet<string>>(new Set());
+  readonly collectingAll = signal(false);
+  readonly collectAllMessage = signal<string | null>(null);
+  readonly collectAllError = signal<string | null>(null);
 
   readonly form = this.formBuilder.group({
     name: ['', [Validators.required, Validators.pattern(/\S/)]],
@@ -56,6 +59,8 @@ export class RssSourcesPage implements OnInit {
   }
 
   submit(): void {
+    if (this.collectingAll()) return;
+
     if (this.deletingId() !== null) return;
 
     if (this.submitting()) return;
@@ -111,6 +116,7 @@ export class RssSourcesPage implements OnInit {
   }
 
   collect(id: string): void {
+    if (this.collectingAll()) return;
     if (this.collectingId() !== null || this.deletingId() !== null) return;
 
     this.collectingId.set(id);
@@ -154,6 +160,7 @@ export class RssSourcesPage implements OnInit {
   }
 
   edit(source: RssSource): void {
+    if (this.collectingAll()) return;
     if (this.deletingId() !== null) return;
 
     if (this.submitting()) return;
@@ -192,6 +199,7 @@ export class RssSourcesPage implements OnInit {
   }
 
   deleteSource(source: RssSource): void {
+    if (this.collectingAll()) return;
     if (this.deletingId() !== null || this.submitting() || this.collectingId() !== null) return;
 
     const confirmed = window.confirm(
@@ -222,5 +230,95 @@ export class RssSourcesPage implements OnInit {
 
   markLogoFailed(url: string): void {
     this.failedLogoUrls.update((urls) => new Set([...urls, url]));
+  }
+
+  collectAll(): void {
+    if (
+      this.collectingAll() ||
+      this.collectingId() !== null ||
+      this.deletingId() !== null ||
+      this.submitting() ||
+      this.loading() ||
+      this.error() !== null ||
+      !this.sources().some((source) => source.isEnabled)
+    ) {
+      return;
+    }
+
+    this.collectingAll.set(true);
+    this.collectAllMessage.set(null);
+    this.collectAllError.set(null);
+    this.collectionFeedback.set({});
+
+    this.api.collectAll().subscribe({
+      next: (result) => {
+        this.collectingAll.set(false);
+
+        const feedback: Record<string, { message: string; error: boolean }> = {};
+
+        for (const source of result.sources) {
+          switch (source.status) {
+            case 'Collected':
+              feedback[source.sourceId] = {
+                message:
+                  source.addedCount === 0
+                    ? 'Aucun nouvel article.'
+                    : `${source.addedCount} article(s) collecté(s).`,
+                error: false,
+              };
+              break;
+
+            case 'Timeout':
+              feedback[source.sourceId] = {
+                message: 'Le site met trop de temps à répondre.',
+                error: true,
+              };
+              break;
+
+            case 'Failed':
+              feedback[source.sourceId] = {
+                message: 'Impossible de lire ce flux.',
+                error: true,
+              };
+              break;
+
+            case 'Disabled':
+              feedback[source.sourceId] = {
+                message: 'Cette source est désactivée.',
+                error: true,
+              };
+              break;
+
+            case 'NotFound':
+              feedback[source.sourceId] = {
+                message: 'Cette source n’existe plus.',
+                error: true,
+              };
+              break;
+          }
+        }
+
+        this.collectionFeedback.set(feedback);
+
+        const succeeded = result.sources.filter((source) => source.status === 'Collected').length;
+
+        const failed = result.sources.length - succeeded;
+
+        this.collectAllMessage.set(
+          `${result.totalAddedCount} article(s) ajouté(s). ` +
+            `${succeeded} source(s) collectée(s), ${failed} non collectée(s).`,
+        );
+      },
+      error: () => {
+        this.collectingAll.set(false);
+        this.collectAllError.set(
+          'La collecte globale a été interrompue. Certains articles peuvent déjà avoir été enregistrés.',
+        );
+      },
+    });
+  }
+
+  hasActiveSources(): boolean {
+    return this.sources().some((source) => source.isEnabled);
   }
 }

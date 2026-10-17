@@ -274,4 +274,139 @@ describe('RssSourcesPage', () => {
     expect(page.querySelector('.source-card')).toBeNull();
     expect(page.textContent).toContain('Aucune source RSS enregistrée.');
   });
+  it('collects all sources and displays feedback for each source', () => {
+    const secondSource: RssSource = {
+      ...source,
+      id: 'source-2',
+      name: 'Deuxième source',
+      feedUrl: 'https://example.com/second-feed',
+    };
+
+    http.expectOne('/api/rss-sources').flush([source, secondSource]);
+    fixture.detectChanges();
+
+    const button = page.querySelector<HTMLButtonElement>('.collection-toolbar button')!;
+
+    button.click();
+    fixture.detectChanges();
+
+    expect(button.disabled).toBe(true);
+
+    for (const action of page.querySelectorAll<HTMLButtonElement>('.source-actions button')) {
+      expect(action.disabled).toBe(true);
+    }
+
+    expect(page.querySelector<HTMLButtonElement>('button[type="submit"]')!.disabled).toBe(true);
+
+    // Un second appel ne doit pas lancer une collecte concurrente.
+    fixture.componentInstance.collectAll();
+
+    const request = http.expectOne('/api/rss-sources/collect');
+
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body).toBeNull();
+
+    request.flush({
+      totalAddedCount: 2,
+      sources: [
+        {
+          sourceId: source.id,
+          sourceName: source.name,
+          status: 'Collected',
+          addedCount: 2,
+          error: null,
+        },
+        {
+          sourceId: secondSource.id,
+          sourceName: secondSource.name,
+          status: 'Timeout',
+          addedCount: 0,
+          error: 'Délai dépassé.',
+        },
+      ],
+    });
+
+    fixture.detectChanges();
+
+    const cards = page.querySelectorAll('.source-card');
+
+    expect(cards[0].querySelector('[role="status"]')?.textContent).toContain(
+      '2 article(s) collecté(s).',
+    );
+
+    expect(cards[1].querySelector('[role="alert"]')?.textContent).toContain(
+      'Le site met trop de temps à répondre.',
+    );
+
+    expect(page.querySelector('.collection-toolbar [role="status"]')?.textContent).toContain(
+      '2 article(s) ajouté(s). 1 source(s) collectée(s), 1 non collectée(s).',
+    );
+
+    expect(button.disabled).toBe(false);
+    expect(collectButton().disabled).toBe(false);
+
+    expect(page.querySelector<HTMLButtonElement>('button[type="submit"]')!.disabled).toBe(false);
+  });
+
+  it('allows retrying collect-all after an HTTP error', () => {
+    http.expectOne('/api/rss-sources').flush([source]);
+    fixture.detectChanges();
+
+    const button = page.querySelector<HTMLButtonElement>('.collection-toolbar button')!;
+
+    button.click();
+
+    http
+      .expectOne('/api/rss-sources/collect')
+      .flush({}, { status: 500, statusText: 'Internal Server Error' });
+
+    fixture.detectChanges();
+
+    expect(page.querySelector('.collection-toolbar [role="alert"]')?.textContent).toContain(
+      'La collecte globale a été interrompue.',
+    );
+
+    expect(button.disabled).toBe(false);
+    expect(collectButton().disabled).toBe(false);
+
+    button.click();
+    fixture.detectChanges();
+
+    expect(page.querySelector('.collection-toolbar [role="alert"]')).toBeNull();
+
+    http.expectOne('/api/rss-sources/collect').flush({
+      totalAddedCount: 0,
+      sources: [
+        {
+          sourceId: source.id,
+          sourceName: source.name,
+          status: 'Collected',
+          addedCount: 0,
+          error: null,
+        },
+      ],
+    });
+
+    fixture.detectChanges();
+
+    expect(button.disabled).toBe(false);
+
+    expect(page.querySelector('.source-card [role="status"]')?.textContent).toContain(
+      'Aucun nouvel article.',
+    );
+  });
+
+  it('does not collect when all sources are disabled', () => {
+    http.expectOne('/api/rss-sources').flush([{ ...source, isEnabled: false }]);
+
+    fixture.detectChanges();
+
+    const button = page.querySelector<HTMLButtonElement>('.collection-toolbar button')!;
+
+    expect(button.disabled).toBe(true);
+
+    fixture.componentInstance.collectAll();
+
+    http.expectNone('/api/rss-sources/collect');
+  });
 });

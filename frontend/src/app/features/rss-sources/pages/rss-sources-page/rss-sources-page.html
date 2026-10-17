@@ -1,5 +1,37 @@
 <h1>Sources RSS</h1>
 
+<div class="collection-toolbar">
+  <button
+    type="button"
+    [disabled]="
+      collectingAll() ||
+      collectingId() !== null ||
+      deletingId() !== null ||
+      submitting() ||
+      loading() ||
+      error() !== null ||
+      !hasActiveSources()
+    "
+    (click)="collectAll()"
+  >
+    {{ collectingAll() ? 'Collecte en cours…' : 'Collecter toutes les sources actives' }}
+  </button>
+
+  @if (collectingAll()) {
+    <p role="status">
+      Collecte des sources actives en cours. Le bilan apparaîtra à la fin.
+    </p>
+  }
+
+  @if (collectAllMessage()) {
+    <p role="status">{{ collectAllMessage() }}</p>
+  }
+
+  @if (collectAllError()) {
+    <p role="alert">{{ collectAllError() }}</p>
+  }
+</div>
+
 <form [formGroup]="form" (ngSubmit)="submit()">
   <div>
     <label for="source-name">Nom</label>
@@ -12,7 +44,7 @@
   </div>
 
   <div>
-    <label for="source-country">Code pays — deux lettres</label>
+    <label for="source-country">Code pays</label>
     <input id="source-country" formControlName="countryCode" maxlength="2" required />
   </div>
   <div class="full-width">
@@ -42,7 +74,7 @@
     <p role="alert">{{ submitError() }}</p>
   }
 
-  <button type="submit" [disabled]="submitting()">
+  <button type="submit" [disabled]="collectingAll() || submitting()">
     {{
       submitting()
         ? 'Enregistrement…'
@@ -53,7 +85,13 @@
   </button>
 
   @if (editingId() !== null) {
-    <button type="button" [disabled]="submitting()" (click)="cancelEdit()">Annuler</button>
+    <button
+  type="button"
+  [disabled]="collectingAll() || submitting()"
+  (click)="cancelEdit()"
+>
+  Annuler
+</button>
   }
 </form>
 
@@ -106,7 +144,7 @@
           <button
             type="button"
             class="icon-button"
-            [disabled]="!source.isEnabled || collectingId() !== null || deletingId() !== null"
+            [disabled]="collectingAll() || !source.isEnabled || collectingId() !== null || deletingId() !== null"
             (click)="collect(source.id)"
             [attr.aria-label]="'Collecter les articles de ' + source.name"
             title="Collecter"
@@ -117,7 +155,7 @@
           <button
             type="button"
             class="icon-button"
-            [disabled]="submitting() || deletingId() !== null"
+            [disabled]="collectingAll() || submitting() || deletingId() !== null"
             (click)="edit(source)"
             [attr.aria-label]="'Modifier ' + source.name"
             title="Modifier"
@@ -128,7 +166,7 @@
           <button
             type="button"
             class="icon-button delete-button"
-            [disabled]="deletingId() !== null || submitting() || collectingId() !== null"
+            [disabled]="collectingAll() || deletingId() !== null || submitting() || collectingId() !== null"
             (click)="deleteSource(source)"
             [attr.aria-label]="'Supprimer ' + source.name"
             title="Supprimer"
