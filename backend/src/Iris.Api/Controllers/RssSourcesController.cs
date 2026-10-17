@@ -12,7 +12,8 @@ public sealed class RssSourcesController(
     AddRssSourceUseCase addRssSourceUseCase,
     CollectRssSourceUseCase collectRssSourceUseCase,
     UpdateRssSourceUseCase updateRssSourceUseCase,
-    DeleteRssSourceUseCase deleteRssSourceUseCase
+    DeleteRssSourceUseCase deleteRssSourceUseCase,
+    IHostEnvironment environment
 ) : ControllerBase
 {
     [HttpGet]
@@ -33,6 +34,75 @@ public sealed class RssSourcesController(
         }).ToList();
 
         return Ok(response);
+    }
+    
+    [HttpPost("batch")]
+    public async Task<IActionResult> CreateBatch(
+        [FromBody] List<BatchRssSourceRequest?> requests,
+        CancellationToken cancellationToken)
+    {
+        if (!environment.IsDevelopment())
+            return NotFound();
+
+        if (requests.Count is < 1 or > 100)
+        {
+            return Problem(
+                statusCode: StatusCodes.Status400BadRequest,
+                title: "Liste invalide",
+                detail: "La liste doit contenir entre 1 et 100 sources.");
+        }
+
+        var results = new List<object>();
+
+        for (var index = 0; index < requests.Count; index++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var request = requests[index];
+
+            if (request is null)
+            {
+                results.Add(new
+                {
+                    index,
+                    status = "invalid",
+                    error = "La source ne peut pas être null."
+                });
+
+                continue;
+            }
+
+            try
+            {
+                var id = await addRssSourceUseCase.ExecuteAsync(
+                    request.Name ?? string.Empty,
+                    request.FeedUrl ?? string.Empty,
+                    request.CountryCode ?? string.Empty,
+                    description: request.Description,
+                    logoUrl: request.LogoUrl,
+                    cancellationToken: cancellationToken);
+
+                results.Add(new
+                {
+                    index,
+                    request.Name,
+                    status = id.HasValue ? "created" : "alreadyExists",
+                    id
+                });
+            }
+            catch (ArgumentException exception)
+            {
+                results.Add(new
+                {
+                    index,
+                    request.Name,
+                    status = "invalid",
+                    error = exception.Message
+                });
+            }
+        }
+
+        return Ok(new { results });
     }
 
     [HttpPost]
