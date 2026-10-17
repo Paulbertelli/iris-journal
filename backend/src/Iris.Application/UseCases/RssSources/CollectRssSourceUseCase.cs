@@ -23,12 +23,15 @@ public sealed class CollectRssSourceUseCase(
             return new(CollectRssSourceStatus.Disabled);
 
         var items = await feedReader.ReadAsync(
-            source.FeedUrl, cancellationToken);
+            source.FeedUrl, 
+            cancellationToken);
 
         var counter = 0;
 
         foreach (var item in items)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+            
             var article = new Article(
                 source.Id,
                 item.Title,
@@ -41,6 +44,7 @@ public sealed class CollectRssSourceUseCase(
                 continue;
 
             await articleRepository.AddAsync(article, cancellationToken);
+            
             counter++;
         }
 

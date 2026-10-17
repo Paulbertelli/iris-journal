@@ -22,6 +22,34 @@ public class RssSourcesApiTests
     {
         public int AddedCount { get; init; }
     }
+    
+    public sealed class CollectAllResponse
+    {
+        public int TotalAddedCount { get; init; }
+        public List<SourceCollectionResponse> Sources { get; init; } = [];
+    }
+
+    public sealed class SourceCollectionResponse
+    {
+        public Guid SourceId { get; init; }
+        public string SourceName { get; init; } = string.Empty;
+        public string Status { get; init; } = string.Empty;
+        public int AddedCount { get; init; }
+        public string? Error { get; init; }
+    }
+    
+    public sealed class BatchResponse
+    {
+        public List<BatchItemResponse> Results { get; init; } = [];
+    }
+
+    public sealed class BatchItemResponse
+    {
+        public int Index { get; init; }
+        public string Status { get; init; } = string.Empty;
+        public Guid? Id { get; init; }
+        public string? Error { get; init; }
+    }
 
     [Fact]
     public async Task Create_WithValidData_ReturnsCreatedWithId()
@@ -891,17 +919,71 @@ public class RssSourcesApiTests
 
         Assert.Empty(await dbContext.RssSources.ToListAsync());
     }
-
-    public sealed class BatchResponse
+    
+    [Fact]
+    public async Task CollectAll_CollectsOnlyActiveSources_ReturnsSummary()
     {
-        public List<BatchItemResponse> Results { get; init; } = [];
-    }
+        await using var factory = new IrisApiFactory();
+        factory.CreateDatabase();
 
-    public sealed class BatchItemResponse
-    {
-        public int Index { get; init; }
-        public string Status { get; init; } = string.Empty;
-        public Guid? Id { get; init; }
-        public string? Error { get; init; }
+        var active = new RssSource(
+            "Source active",
+            "https://example.com/active",
+            "FR");
+
+        var disabled = new RssSource(
+            "Source désactivée",
+            "https://example.com/disabled",
+            "FR",
+            isEnabled: false);
+
+        using (var scope = factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider
+                .GetRequiredService<IrisDbContext>();
+
+            dbContext.RssSources.AddRange(active, disabled);
+            await dbContext.SaveChangesAsync();
+        }
+
+        factory.FeedItems =
+        [
+            new RssFeedItem
+            {
+                Title = "Article test",
+                ArticleUrl = "https://example.com/article"
+            }
+        ];
+
+        using var client = factory.CreateClient();
+        using var response = await client.PostAsync(
+            "/api/rss-sources/collect", null);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var body = await response.Content
+            .ReadFromJsonAsync<CollectAllResponse>();
+
+        Assert.NotNull(body);
+        Assert.Equal(1, body.TotalAddedCount);
+        Assert.Equal(1, factory.FeedReadCount);
+
+        var result = Assert.Single(body.Sources);
+
+        Assert.Equal(active.Id, result.SourceId);
+        Assert.Equal(active.Name, result.SourceName);
+        Assert.Equal("Collected", result.Status);
+        Assert.Equal(1, result.AddedCount);
+        Assert.Null(result.Error);
+
+        using var verificationScope = factory.Services.CreateScope();
+        var verificationContext = verificationScope.ServiceProvider
+            .GetRequiredService<IrisDbContext>();
+
+        var article = Assert.Single(
+            await verificationContext.Articles.ToListAsync());
+
+        Assert.Equal(active.Id, article.RssSourceId);
+        Assert.Equal("https://example.com/article", article.ArticleUrl);
     }
 }

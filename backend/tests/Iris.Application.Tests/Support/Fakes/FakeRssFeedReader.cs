@@ -8,6 +8,9 @@ public sealed class FakeRssFeedReader(
     public int CallCount { get; private set; }
     public string? LastFeedUrl { get; private set; }
 
+    public Func<string, CancellationToken, Task<IReadOnlyList<RssFeedItem>>>?
+        ReadHandler { get; set; }
+
     public Task<IReadOnlyList<RssFeedItem>> ReadAsync(
         string feedUrl,
         CancellationToken cancellationToken = default)
@@ -17,6 +20,8 @@ public sealed class FakeRssFeedReader(
         CallCount++;
         LastFeedUrl = feedUrl;
 
-        return Task.FromResult<IReadOnlyList<RssFeedItem>>(items);
+        return ReadHandler is { } handler
+            ? handler(feedUrl, cancellationToken)
+            : Task.FromResult<IReadOnlyList<RssFeedItem>>(items);
     }
 }
