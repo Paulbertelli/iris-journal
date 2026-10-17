@@ -210,7 +210,7 @@ public class RssFeedReaderTests
                 "https://example.com/feed",
                 cancellation.Token));
     }
-    
+
     [Theory]
     [InlineData(
         """<media:content url="https://example.com/photo.jpg" width="644" height="322" />""",
@@ -270,5 +270,140 @@ public class RssFeedReaderTests
         var item = Assert.Single(result);
 
         Assert.Equal(expectedImageUrl, item.ImageUrl);
+    }
+
+    [Theory]
+    [InlineData("EDT", 14)]
+    [InlineData("EST", 15)]
+    [InlineData("GMT", 10)]
+    public async Task ReadAsync_WithNamedTimeZone_ReturnsUtcDate(
+        string timeZone,
+        int expectedHour)
+    {
+        var xml = $"""
+                   <rss version="2.0">
+                     <channel>
+                       <title>Flux test</title>
+                       <link>https://example.com</link>
+                       <description>Test</description>
+                       <item>
+                         <title>Article test</title>
+                         <link>https://example.com/article</link>
+                         <pubDate>Sat, 17 Oct 2026 10:19:35 {timeZone}</pubDate>
+                       </item>
+                     </channel>
+                   </rss>
+                   """;
+
+        using var client = new HttpClient(new StubHttpMessageHandler(xml));
+        var reader = new RssFeedReader(client);
+
+        var items = await reader.ReadAsync("https://example.com/feed");
+
+        var item = Assert.Single(items);
+        var date = Assert.IsType<DateTimeOffset>(item.PublishedAt);
+
+        Assert.Equal(
+            new DateTimeOffset(
+                2026, 10, 17, expectedHour, 19, 35, TimeSpan.Zero),
+            date);
+
+        Assert.Equal(TimeSpan.Zero, date.Offset);
+    }
+
+    [Fact]
+    public async Task ReadAsync_WithHtmlDescription_ExtractsImageAndDecodesUrl()
+    {
+        var xml = """
+                  <rss version="2.0">
+                    <channel>
+                      <title>Flux test</title>
+                      <link>https://example.com</link>
+                      <description>Test</description>
+                      <item>
+                        <title>Article test</title>
+                        <link>https://example.com/article</link>
+                        <description><![CDATA[
+                          <img src='https://example.com/photo.jpg?width=620&amp;height=349'>
+                          <p>Description de l’article.</p>
+                        ]]></description>
+                      </item>
+                    </channel>
+                  </rss>
+                  """;
+
+        using var client = new HttpClient(new StubHttpMessageHandler(xml));
+        var reader = new RssFeedReader(client);
+
+        var items = await reader.ReadAsync("https://example.com/feed");
+
+        Assert.Equal(
+            "https://example.com/photo.jpg?width=620&height=349",
+            Assert.Single(items).ImageUrl);
+    }
+
+    [Fact]
+    public async Task ReadAsync_WithMediaAndHtmlImages_PrefersMediaImage()
+    {
+        var xml = """
+                  <rss version="2.0"
+                       xmlns:media="http://search.yahoo.com/mrss/">
+                    <channel>
+                      <title>Flux test</title>
+                      <link>https://example.com</link>
+                      <description>Test</description>
+                      <item>
+                        <title>Article test</title>
+                        <link>https://example.com/article</link>
+                        <media:content
+                            medium="image"
+                            url="https://example.com/media.jpg" />
+                        <description><![CDATA[
+                          <img src="https://example.com/html.jpg">
+                        ]]></description>
+                      </item>
+                    </channel>
+                  </rss>
+                  """;
+
+        using var client = new HttpClient(new StubHttpMessageHandler(xml));
+        var reader = new RssFeedReader(client);
+
+        var items = await reader.ReadAsync("https://example.com/feed");
+
+        Assert.Equal(
+            "https://example.com/media.jpg",
+            Assert.Single(items).ImageUrl);
+    }
+
+    [Fact]
+    public async Task ReadAsync_WithInvalidHtmlImageUrl_SkipsIt()
+    {
+        var xml = """
+                  <rss version="2.0">
+                    <channel>
+                      <title>Flux test</title>
+                      <link>https://example.com</link>
+                      <description>Test</description>
+                      <item>
+                        <title>Article test</title>
+                        <link>https://example.com/article</link>
+                        <description><![CDATA[
+                          <img src="javascript:alert(1)">
+                          <img src="https://example.com/valid.jpg">
+                        ]]></description>
+                      </item>
+                    </channel>
+                  </rss>
+                  """;
+
+        using var client = new HttpClient(new StubHttpMessageHandler(xml));
+        var reader = new RssFeedReader(client);
+
+        var items = await reader.ReadAsync("https://example.com/feed");
+
+        Assert.Equal(
+            "https://example.com/valid.jpg",
+            Assert.Single(items).ImageUrl);
     }
 }
