@@ -13,6 +13,7 @@ public sealed class RssSourcesController(
     CollectRssSourceUseCase collectRssSourceUseCase,
     UpdateRssSourceUseCase updateRssSourceUseCase,
     DeleteRssSourceUseCase deleteRssSourceUseCase,
+    CollectAllRssSourcesUseCase collectAllRssSourcesUseCase,
     IHostEnvironment environment
 ) : ControllerBase
 {
@@ -232,5 +233,26 @@ public sealed class RssSourcesController(
             return NotFound();
 
         return NoContent();
+    }
+    
+    [HttpPost("collect")]
+    public async Task<IActionResult> CollectAll(
+        CancellationToken cancellationToken)
+    {
+        var result = await collectAllRssSourcesUseCase.ExecuteAsync(
+            cancellationToken);
+
+        return Ok(new
+        {
+            totalAddedCount = result.TotalAddedCount,
+            sources = result.Sources.Select(source => new
+            {
+                sourceId = source.SourceId,
+                sourceName = source.SourceName,
+                status = source.Status.ToString(),
+                addedCount = source.AddedCount,
+                error = source.Error
+            }).ToList()
+        });
     }
 }
