@@ -6,46 +6,103 @@ namespace Iris.Infrastructure.Feeds;
 
 public sealed class RssFeedReader(HttpClient httpClient) : IRssFeedReader
 {
-    public async Task<IReadOnlyList<RssFeedItem>> ReadAsync(string feedUrl,
+    public async Task<IReadOnlyList<RssFeedItem>> ReadAsync(
+        string feedUrl,
         CancellationToken cancellationToken = default)
     {
         try
         {
             using var response = await httpClient.GetAsync(feedUrl, cancellationToken);
+            
             response.EnsureSuccessStatusCode();
 
-            await using var stream =
-                await response.Content.ReadAsStreamAsync(cancellationToken);
+            var content = await response.Content.ReadAsStringAsync(cancellationToken);
+            
+            cancellationToken.ThrowIfCancellationRequested();
 
-            var document = await XDocument.LoadAsync(stream, LoadOptions.None, cancellationToken);
+            var document = XDocument.Parse(content);
+
+            XNamespace dcDates = "http://purl.org/dc/elements/1.1/";
+            XNamespace atomDates = "http://www.w3.org/2005/Atom";
+            XNamespace rss10 = "http://purl.org/rss/1.0/";
+
+            var dateNames = new HashSet<XName>
+            {
+                "pubDate",
+                "lastBuildDate",
+                dcDates + "date",
+                atomDates + "published",
+                atomDates + "updated",
+                rss10 + "pubDate"
+            };
+
+            foreach (var dateElement in document.Descendants()
+                         .Where(element => dateNames.Contains(element.Name))
+                         .ToList())
+            {
+                if (DateTimeOffset.TryParse(
+                        dateElement.Value,
+                        CultureInfo.InvariantCulture,
+                        DateTimeStyles.AllowWhiteSpaces
+                        | DateTimeStyles.AssumeUniversal,
+                        out var date))
+                {
+                    dateElement.Value = date.ToUniversalTime()
+                        .ToString("r", CultureInfo.InvariantCulture);
+                }
+                else
+                {
+                    dateElement.Remove();
+                }
+            }
+
+            var feed = CodeHollow.FeedReader.FeedReader.ReadFromString(
+                document.ToString(SaveOptions.DisableFormatting));
 
             var items = new List<RssFeedItem>();
+            
+            XNamespace dc = "http://purl.org/dc/elements/1.1/";
+            XNamespace atom = "http://www.w3.org/2005/Atom";
 
-            foreach (var item in document.Descendants("item"))
+            foreach (var item in feed.Items)
             {
-                var title = item.Element("title")?.Value.Trim();
-                var link = item.Element("link")?.Value.Trim();
-                var pubDate = item.Element("pubDate")?.Value;
+                cancellationToken.ThrowIfCancellationRequested();
 
+                var title = item.Title?.Trim();
+                
                 if (string.IsNullOrWhiteSpace(title))
                     continue;
-
-                if (!Uri.TryCreate(link, UriKind.Absolute, out var uri) ||
-                    uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps)
+                
+                if (!Uri.TryCreate(item.Link?.Trim(), UriKind.Absolute, out var uri)
+                    || uri.Scheme != Uri.UriSchemeHttp
+                        && uri.Scheme != Uri.UriSchemeHttps)
                     continue;
 
+                var element = item.SpecificItem.Element;
+                
+                var dateValue = element.Element("pubDate")?.Value
+                                ?? element.Element(dc + "date")?.Value
+                                ?? element.Element(atom + "published")?.Value
+                                ?? item.PublishingDateString;
+                
                 DateTimeOffset? publishedAt = null;
 
-                if (DateTimeOffset.TryParse(pubDate, CultureInfo.InvariantCulture, DateTimeStyles.AllowWhiteSpaces,
+                if (DateTimeOffset.TryParse(
+                        dateValue,
+                        CultureInfo.InvariantCulture,
+                        DateTimeStyles.AllowWhiteSpaces
+                        | DateTimeStyles.AssumeUniversal,
                         out var parsedDate))
+                {
                     publishedAt = parsedDate.ToUniversalTime();
+                }
 
                 items.Add(new RssFeedItem
                 {
                     Title = title,
                     ArticleUrl = uri.AbsoluteUri,
                     PublishedAt = publishedAt,
-                    ImageUrl = ExtractImageUrl(item)
+                    ImageUrl = ExtractImageUrl(element)
                 });
             }
 
